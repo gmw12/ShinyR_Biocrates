@@ -77,9 +77,7 @@ body <- dashboardBody(
               
               column(width = 8,  
                      box(title = "Study Design Table", status = "primary", solidHeader = TRUE, collapsible = FALSE, width = 12, height = 725,
-                         rHandsontableOutput("stats_design_table")
-                         #div(style = 'overflow-x: scroll; overflow-y: scroll;', DT::dataTableOutput("stats_design_table")) #), width = '100%'))
-                         
+                         rHandsontableOutput("configuration_table")
                      ))
             )
     ),
@@ -133,7 +131,7 @@ body <- dashboardBody(
 
 
 dashboardPage(
-  dashboardHeader(title = "Duke Proteomics Data Processing", titleWidth = 325),
+  dashboardHeader(title = "Duke Biocrates Data Processing", titleWidth = 325),
   sidebar,
   body
 )  
