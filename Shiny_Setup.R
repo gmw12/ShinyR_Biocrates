@@ -35,9 +35,9 @@ load_config_file <- function(session, input, output){
   
   params$file_prefix <<- input$file_prefix
   
-  design_sbf <- parseFilePaths(volumes, input$sfb_config_file)
-  params$design_path <<- str_extract(config_sbf$datapath, "^/.*/")
-  params$design_file <<- config_sbf$datapath
+  config_sbf <- parseFilePaths(volumes, input$sfb_config_file)
+  params$config_path <<- str_extract(config_sbf$datapath, "^/.*/")
+  params$config_file <<- config_sbf$datapath
   
   # set root data dir
   volumes <<- c(dd = params$config_path, volumes)
@@ -57,7 +57,7 @@ load_config_file <- function(session, input, output){
   
   cat(file = stderr(), str_c("loading config file from ", params$config_path), "\n")
   
-  bg_design <- callr::r_bg(excel_to_db, args = list(config_sbf$datapath, "config", params$database_path), stderr = str_c(params$error_path, "//error_config.txt"), supervise = TRUE)
+  bg_design <- callr::r_bg(excel_to_db, args = list(config_sbf$datapath, "config", params$database_path, list('Analytes', 'QC')), stderr = str_c(params$error_path, "//error_config.txt"), supervise = TRUE)
   bg_design$wait()
   print_stderr("error_config.txt")
   

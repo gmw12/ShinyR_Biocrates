@@ -110,11 +110,18 @@ create_dir_only <- function(name){
 }
 
 #--------------------------------------------------------------
-excel_to_db <- function(excel_path, table_name, database_path){
-  df <- readxl::read_excel(excel_path)
-  conn <- RSQLite::dbConnect(RSQLite::SQLite(), database_path)
-  RSQLite::dbWriteTable(conn, table_name, df, overwrite = TRUE)
-  RSQLite::dbDisconnect(conn)
+excel_to_db <- function(excel_path, table_name, database_path, sheet_names){
+  cat(file = stderr(), "Function - excel_to_db", "\n")
+ 
+  for (name in sheet_names) {
+    cat(file = stderr(), stringr::str_c("Reading excel: ", name), "\n\n")
+    df <- readxl::read_excel(excel_path, sheet = name)
+    conn <- RSQLite::dbConnect(RSQLite::SQLite(), database_path)
+    RSQLite::dbWriteTable(conn, name, df, overwrite = TRUE)
+    RSQLite::dbDisconnect(conn)
+  }
+  
+  cat(file = stderr(), "Function - excel_to_db...end", "\n")
 }
 
 #----------------------------------------------------------------------------------------

@@ -45,7 +45,7 @@ shinyServer(function(session, input, output) {
   
   #------------------------------------------------------------------------------------------------------  
   #Load design file
-  observeEvent(input$sfb_design_file, {
+  observeEvent(input$sfb_config_file, {
     
     cat(file = stderr(), "\n\n", "sfb_design_file button clicked...", "\n")
     
@@ -54,19 +54,9 @@ shinyServer(function(session, input, output) {
       #load design from excel, create database
       load_config_file(session, input, output)
       
-      #set file locations
-      file_set()
-      
-      #update UI
-      ui_render_load_design(session, input, output)
-      
-      #create design table, save to database
-      create_design_table(session, input, output)
-      create_stats_design_table(session, input, output)
-      
       #backup design table
-      design_sbf <- parseFilePaths(volumes, input$sfb_design_file)
-      save_data(design_sbf$datapath)
+      config_sbf <- parseFilePaths(volumes, input$sfb_config_file)
+      save_data(config_sbf$datapath)
       
       #reset default dd for data
       set_file_choosers_data(session, input, output, volumes) 

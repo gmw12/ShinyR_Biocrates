@@ -43,4 +43,6 @@ filter_db <- function(table_name, column_name, key_word, params) {
 
 list_tables(params)
 
-df_raw <- read_table('precursor_raw', params)
+df_params <- read_table('params', params)
+df_analytes <- read_table('Analytes', params)
+df_qc <- read_table('QC', params)

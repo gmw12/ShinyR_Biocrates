@@ -52,12 +52,12 @@ body <- dashboardBody(
                            tags$h4("1. Enter file prefix for data output"),
                            fluidRow(align = "center", textInput("file_prefix", label = "", width = 300, value = "project_date")),
                            
-                           tags$h4("2. Select and Load the study design file..."),
+                           tags$h4("2. Select and Load the Biocrates configuration file..."),
                            
                            fluidRow(align = "center", shinyFilesButton('sfb_config_file', label = 'Load Configuration File', title = 'Please select excel design file', multiple = FALSE,
                                                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4; display:center")),
                            
-                           span(textOutput("design_file_name"), style = "color:blue; font-size:16px"),
+                           span(textOutput("config_file_name"), style = "color:blue; font-size:16px"),
                            
                            tags$h4("3. Select data file(s).."),
                            
