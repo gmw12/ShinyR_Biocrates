@@ -41,8 +41,21 @@ filter_db <- function(table_name, column_name, key_word, params) {
   return(df)
 }
 
+get_max_rowid <- function(table_name, params) {
+  conn <- dbConnect(RSQLite::SQLite(), params$database_path) 
+  query <- stringr::str_c("SELECT max(RowId) FROM ", table_name) 
+  df <- dbGetQuery(conn, query)
+  RSQLite::dbDisconnect(conn)
+  return(df)
+}
+
+get_max_rowid('Analytes', params)
+
 list_tables(params)
 
 df_params <- read_table('params', params)
 df_analytes <- read_table('Analytes', params)
 df_qc <- read_table('QC', params)
+df_data_raw <- read_table('data_raw', params)
+
+

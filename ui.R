@@ -8,6 +8,7 @@ sidebar <- dashboardSidebar(width = 165,
                             sidebarMenu(
                               menuItem("Welcome", tabName = "welcome", selected = TRUE),
                               menuItem("Load", tabName = "load", selected = FALSE),
+                              menuItem("Process", tabName = "process", selected = FALSE),
                               menuItem("Admin", tabName = "admin", selected = FALSE)
                             )
 )
@@ -43,10 +44,7 @@ body <- dashboardBody(
               column(width = 4,
                      fluidRow(
                        box(title = "Current State", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 150,
-                           span(textOutput("data_source"), style = "color:blue; font-size:16px"),
-                           span(textOutput("data_input"), style = "color:blue; font-size:16px"),
-                           span(textOutput("data_table_format"), style = "color:blue; font-size:16px"),
-                           span(textOutput("data_ptm"), style = "color:blue; font-size:16px")
+                           span(textOutput("data_source"), style = "color:blue; font-size:16px")
                        ),
                        box(title = "Start from Scratch", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 375,
                            tags$h4("1. Enter file prefix for data output"),
@@ -76,14 +74,38 @@ body <- dashboardBody(
               
               
               column(width = 8,  
-                     box(title = "Study Design Table", status = "primary", solidHeader = TRUE, collapsible = FALSE, width = 12, height = 725,
-                         rHandsontableOutput("configuration_table")
+                     box(title = "Configuration File", status = "primary", solidHeader = TRUE, collapsible = FALSE, width = 12, height = 725,
+                         rHandsontableOutput("config_table")
                      ))
             )
     ),
 
 
-
+    #Parameters
+    tabItem(tabName = "process",
+            fluidRow(
+              column(width = 2,
+                     fluidRow(
+                       box(id = "param_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
+                           
+                           actionButton("remove_status_col", label = "Remove Status Columns",
+                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"))
+                       
+                       
+                       )),
+              
+              column(width = 10,  
+                     fluidRow(
+                       box(title = "Biocrates Data", status = "primary", solidHeader = TRUE, collapsible = FALSE, width = 12, height = 750,
+                        column(width =12, offset =0,
+                            hr(),
+                            tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
+                            DT::dataTableOutput("data_processed", width ='100%')
+                       )))
+            )
+      )
+    ),
+    
 
     tabItem(tabName = "admin",
             fluidRow(

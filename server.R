@@ -61,9 +61,33 @@ shinyServer(function(session, input, output) {
       #reset default dd for data
       set_file_choosers_data(session, input, output, volumes) 
       
+      #update UI
+      ui_render_load_config(session, input, output)
+      create_config_table(session, input, output)
     }
     
   })
+  
+  #------------------------------------------------------------------------------------------------------  
+  #Load data file
+  observeEvent(input$sfb_data_file, {
+    
+    cat(file = stderr(), "\n\n","sfb_data_file button clicked...", "\n")
+    
+    if (is.list(input$sfb_data_file)) {
+      
+      #read data files
+      load_data_file(session, input, output, params)
+      
+      #update UI
+      ui_render_load_data(session, input, output)
+      
+    }
+    
+  }) 
+  
+  
+  
   
   
   

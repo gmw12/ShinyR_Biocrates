@@ -45,11 +45,12 @@ load_config_file <- function(session, input, output){
   cat(file = stderr(), stringr::str_c(volumes), "\n")
   
   #Global set of data and database paths
+  params$data_source <<- "unkown"
   params$data_path <<- str_c(params$config_path, input$file_prefix, "/")
   database_dir <<- str_c(getwd(), "/database/")
   params$database_path <<- str_c(database_dir, input$file_prefix, ".db")
   params$error_path <<- create_dir(str_c(params$data_path, "Error"))
-  
+
   #create working directory for 
   create_dir(params$data_path)
   create_dir(database_dir)
@@ -60,6 +61,15 @@ load_config_file <- function(session, input, output){
   bg_design <- callr::r_bg(excel_to_db, args = list(config_sbf$datapath, "config", params$database_path, list('Analytes', 'QC')), stderr = str_c(params$error_path, "//error_config.txt"), supervise = TRUE)
   bg_design$wait()
   print_stderr("error_config.txt")
+  
+  
+  #set type of Biocrates file
+  if (get_max_rowid('Analytes', params) <=21) {
+    params$data_source <<- "BileAcid"
+  } else {
+    params$data_source <<- "Q500"
+  }
+  
   
   gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
   

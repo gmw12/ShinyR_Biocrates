@@ -298,3 +298,16 @@ zip_data_save_bg <- function(input_archive_data_filename, params){
   
   cat(file = stderr(), "Function - zip_data_save_bg...end", "\n")
 }
+
+#----------------------------------------------------------------------------------------
+get_max_rowid <- function(table_name, params) {
+  cat(file = stderr(), "Function - get_max_rowid...", "\n")
+  
+  conn <- dbConnect(RSQLite::SQLite(), params$database_path) 
+  query <- stringr::str_c("SELECT max(RowId) FROM ", table_name) 
+  max_row <- dbGetQuery(conn, query)
+  RSQLite::dbDisconnect(conn)
+  
+  cat(file = stderr(), "Function - get_max_rowid...end", "\n")
+  return(max_row)
+}
