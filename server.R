@@ -81,14 +81,54 @@ shinyServer(function(session, input, output) {
       
       #update UI
       ui_render_load_data(session, input, output)
+      create_data_table(session, input, output, params, "data_raw")
       
     }
     
   }) 
   
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$remove_status_col, {
+    
+    cat(file = stderr(), "\n\n","remove_status_col clicked...", "\n")
+
+    #remove status columns
+    remove_status_cols(session, input, output, params)
+    
+    create_data_table(session, input, output, params, "data_status")
+
+    cat(file = stderr(), "\n\n","remove_status_col clicked...end", "\n")
+    
+  }) 
+  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$remove_indicators, {
+    
+    cat(file = stderr(), "\n\n","remove_indicators clicked...", "\n")
+    
+    #remove status columns
+    remove_indicators(session, input, output, params)
+    
+    create_data_table(session, input, output, params, "data_no_indicators")
+    
+    cat(file = stderr(), "\n\n","remove_indicators clicked...end", "\n")
+    
+  }) 
   
   
-  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$separate_data, {
+    
+    cat(file = stderr(), "\n\n","separate_data clicked...", "\n")
+    
+    #remove status columns
+    separate_data(session, input, output, params)
+    
+    create_data_table(session, input, output, params, "data_start")
+    
+    cat(file = stderr(), "\n\n","separate_data clicked...end", "\n")
+    
+  }) 
   
   
   removeModal()     

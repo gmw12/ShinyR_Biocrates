@@ -89,8 +89,18 @@ body <- dashboardBody(
                        box(id = "param_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
                            
                            actionButton("remove_status_col", label = "Remove Status Columns",
-                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"))
+                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                          br(),
+                          br(),
                        
+                           actionButton("remove_indicators", label = "Remove Indicators",
+                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                          br(),
+                          br(),
+                          
+                          actionButton("separate_data", label = "Separate Data and LOD",
+                                       style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
+                       )
                        
                        )),
               
@@ -100,7 +110,7 @@ body <- dashboardBody(
                         column(width =12, offset =0,
                             hr(),
                             tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
-                            DT::dataTableOutput("data_processed", width ='100%')
+                            DT::dataTableOutput("data_table", width ='100%')
                        )))
             )
       )

@@ -2,6 +2,140 @@ cat(file = stderr(), "Shiny_Data.R", "\n")
 
 #---------------------------------------------------------------------
 
+remove_status_cols <- function(session, input, output, params){
+  cat(file = stderr(), "Function remove_status_cols...", "\n")
+  
+  bg_status_col <- callr::r_bg(remove_status_cols_bg, args = list(params), stderr = str_c(params$error_path, "//error_removestatuscols.txt"), supervise = TRUE)
+  bg_status_col$wait()
+  print_stderr("error_removestatuscols.txt")
+
+  cat(file = stderr(), "Function remove_status_cols...end", "\n")
+  
+}
+
+
+#---------------------------------------------------------------------
+
+remove_status_cols_bg <- function(params){
+  cat(file = stderr(), "Function remove_status_cols_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_raw", params)
+  
+  #remove columns that contain the word Status from df
+  df <- df |> dplyr::select(-contains("Status"))
+
+  write_table_try("data_status", df, params)
+  
+  cat(file = stderr(), "Function remove_status_cols_bg...end", "\n")
+  
+}
+
+#---------------------------------------------------------------------
+
+remove_indicators <- function(session, input, output, params){
+  cat(file = stderr(), "Function remove_indicators...", "\n")
+  
+  bg_indicators <- callr::r_bg(remove_indicators_bg, args = list(params), stderr = str_c(params$error_path, "//error_removeindicators.txt"), supervise = TRUE)
+  bg_indicators$wait()
+  print_stderr("error_removeindicators.txt")
+  
+  cat(file = stderr(), "Function remove_indicators...end", "\n")
+  
+}
+
+
+#---------------------------------------------------------------------
+
+remove_indicators_bg <- function(params){
+  cat(file = stderr(), "Function remove_indicators_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_status", params)
+  df_analytes <- read_table_try("analytes", params)  
+
+  #find colnumber for df_analytes$Abbreviation[1]
+  col_num <- which(colnames(df) == df_analytes$Abbreviation[1])
+  last_col <- col_num + nrow(df_analytes) - 1
+  
+  df_indicators <- df[,(last_col + 1):ncol(df)]
+  df <- df[,(1:last_col)]
+  
+  #find first row with a number 
+  data_rows <- which(grepl("^[0-9]", df_indicators[[1]]))
+  df_indicators <- df_indicators[data_rows,]
+  
+  write_table_try("data_indicators", df_indicators, params)
+  write_table_try("data_no_indicators", df, params)
+  
+  cat(file = stderr(), "Function remove_indicators_bg...end", "\n")
+  
+}
+
+#---------------------------------------------------------------------
+
+separate_data <- function(session, input, output, params){
+  cat(file = stderr(), "Function separate_data...", "\n")
+  
+  bg_separate_data <- callr::r_bg(separate_data_bg, args = list(params), stderr = str_c(params$error_path, "//error_separate_data.txt"), supervise = TRUE)
+  bg_separate_data$wait()
+  print_stderr("error_separate_data.txt")
+  
+  analyte_match <- bg_separate_data$result()
+  
+  if (analyte_match == FALSE) {
+    shinyalert("Oops!", "Data and Configuration do not match", type = "error")
+  }
+  
+  
+  cat(file = stderr(), "Function separate_data...end", "\n")
+  
+}
+
+
+#---------------------------------------------------------------------
+
+separate_data_bg <- function(params){
+  cat(file = stderr(), "Function separate_data_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_no_indicators", params)
+
+  #find row number for first row with number or letters
+  data_rows <- which(grepl("^[0-9]", df[[1]]))
+  df_data <- df[data_rows,]
+  df_lod <- df[-data_rows,]
+  
+  df_analytes <- read_table_try("analytes", params)  
+  
+  #find colnumber for df_analytes$Abbreviation[1]
+  col_num <- which(colnames(df) == df_analytes$Abbreviation[1])
+  df_lod <- df_lod[,(col_num - 1):ncol(df_lod)]
+  
+  write_table_try("data_start", df_data, params)
+  write_table_try("data_lod", df_lod, params)
+  
+  #check that analytes and order match
+  test_data <- colnames(df[(ncol(df)-nrow(df_analytes)+1):ncol(df)])
+  #replace . ( ) + in test with ""
+  test_data <- gsub("[.()\\+]", "", test_data)
+  test_config <- gsub("[.()\\+]", "", df_analytes$Abbreviation)
+  
+  if (test_data != test_config) {
+    analyte_match <- FALSE
+  }else{
+    analyte_match <- TRUE
+  }
+  
+  cat(file = stderr(), "Function separate_data_bg...end", "\n")
+
+  return(analyte_match)
+    
+}
+
+
+#---------------------------------------------------------------------
+
 load_archive_file <- function(session, input, output){
   cat(file = stderr(), "Function load_archive_file...", "\n")
   #showModal(modalDialog("Loading archive file...", footer = NULL))

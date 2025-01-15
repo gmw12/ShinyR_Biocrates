@@ -64,12 +64,13 @@ load_config_file <- function(session, input, output){
   
   
   #set type of Biocrates file
-  if (get_max_rowid('Analytes', params) <=21) {
+  analyte_count <- get_max_rowid('Analytes', params)[[1]]
+  if (analyte_count == 20) {
     params$data_source <<- "BileAcid"
   } else {
     params$data_source <<- "Q500"
   }
-  
+  params$analyte_count <<- analyte_count
   
   gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
   

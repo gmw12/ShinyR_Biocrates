@@ -83,41 +83,73 @@ create_stats_design_table_bg <- function(database_path){
 
 
 #load design table
-create_impute_table <- function(session, input, output, params){
-  cat(file = stderr(), "Function create_impute_table...", "\n")
+create_data_table <- function(session, input, output, params, table_name){
+  cat(file = stderr(), "Function create_data_table...", "\n")
 
-  bg_imputetable <- callr::r_bg(create_impute_table_bg, args = list(params), stderr = stringr::str_c(params$error_path, "//error_imputetable.txt"), supervise = TRUE)
-  bg_imputetable$wait()
-  print_stderr("error_imputetable.txt")
+  bg_datatable <- callr::r_bg(create_data_table_bg, args = list(params, table_name), stderr = stringr::str_c(params$error_path, "//error_datatable.txt"), supervise = TRUE)
+  bg_datatable$wait()
+  print_stderr("error_datatable.txt")
 
-  impute_DT <- bg_imputetable$get_result()
-  output$impute_meta_table <- DT::renderDataTable(impute_DT)
+  data_table_DT <- bg_datatable$get_result()
+  output$data_table <- DT::renderDataTable(data_table_DT)
   
-  cat(file = stderr(), "Function create_impute_table...end", "\n")
+  cat(file = stderr(), "Function create_data_table...end", "\n")
 }
 
 #--------------------------------
 
-create_impute_table_bg <- function(params){
-  cat(file = stderr(), "Function create_impute_table_bg...", "\n")
+create_data_table_bg <- function(params, table_name){
+  cat(file = stderr(), "Function create_data_table_bg...", "\n")
   source("Shiny_File.R")
+  require('DT')
   
   #get design data
-  df <- read_table_try("missing_values", params)
+  df <- read_table_try(table_name, params)
   
-  impute_DT <-  DT::datatable(df,
-                              rownames = FALSE,
-                              options = list(
-                                autoWidth = TRUE,
-                                columnDefs = list(list(targets = c(0), visibile = TRUE, "width" = '5', className = 'dt-center'),
-                                                  list(targets = c(1), visibile = TRUE, "width" = '5', className = 'dt-center')
-                                ),
-                                pageLength = 12, 
-                                lengthMenu = c(12,20,100,500)
-                              ))
+  options <- list(
+    selection = 'single',
+    #dom = 'Bfrtipl',
+    autoWidth = TRUE,
+    scrollX = TRUE,
+    scrollY = 500,
+    scrollCollapse = TRUE,
+    columnDefs = list(
+      list(
+        targets = c(0),
+        visibile = TRUE,
+        "width" = '10',
+        className = 'dt-center'
+      ),
+      list(
+        targets = c(2),
+        visible = TRUE,
+        "width" = '20',
+        className = 'dt-center'
+      ),
+      list(
+        targets = c(14),
+        width = '20',
+        render = JS(
+          "function(data, type, row, meta) {",
+          "return type === 'display' && data.length > 35 ?",
+          "'<span title=\"' + data + '\">' + data.substr(0, 35) + '...</span>' : data;",
+          "}"
+        )
+      )
+    ),
+    ordering = TRUE,
+    orderClasses = TRUE,
+    fixedColumns = list(leftColumns = 1),
+    pageLength = 25,
+    lengthMenu = c(10, 50, 100, 200)
+    #formatRound(columns = c(sample_col_numbers + 1), digits = 0)
+  )
   
-  cat(file = stderr(), "Function create_impute_table_bg...end", "\n")
-  return(impute_DT)   
+  
+  data_table_DT <-  DT::datatable(df, rownames = FALSE, options = options)
+  
+  cat(file = stderr(), "Function create_data_table_bg...end", "\n")
+  return(data_table_DT)   
 }
 
 #--------------------------------------------------------------------------
