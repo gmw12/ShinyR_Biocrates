@@ -57,5 +57,5 @@ df_params <- read_table('params', params)
 df_analytes <- read_table('Analytes', params)
 df_qc <- read_table('QC', params)
 df_data_raw <- read_table('data_raw', params)
-
-
+df_lod <- read_table('data_lod', params)
+df_data_start <- read_table('data_start', params)

@@ -85,11 +85,14 @@ create_stats_design_table_bg <- function(database_path){
 #load design table
 create_data_table <- function(session, input, output, params, table_name){
   cat(file = stderr(), "Function create_data_table...", "\n")
-
+  require('DT')
+  require('shinyjs')
+  
   bg_datatable <- callr::r_bg(create_data_table_bg, args = list(params, table_name), stderr = stringr::str_c(params$error_path, "//error_datatable.txt"), supervise = TRUE)
   bg_datatable$wait()
   print_stderr("error_datatable.txt")
 
+  
   data_table_DT <- bg_datatable$get_result()
   output$data_table <- DT::renderDataTable(data_table_DT)
   
@@ -101,54 +104,80 @@ create_data_table <- function(session, input, output, params, table_name){
 create_data_table_bg <- function(params, table_name){
   cat(file = stderr(), "Function create_data_table_bg...", "\n")
   source("Shiny_File.R")
-  require('DT')
   
   #get design data
   df <- read_table_try(table_name, params)
   
   options <- list(
     selection = 'single',
-    #dom = 'Bfrtipl',
+    plugins = "ellipsis",
     autoWidth = TRUE,
     scrollX = TRUE,
     scrollY = 500,
     scrollCollapse = TRUE,
     columnDefs = list(
       list(
-        targets = c(0),
+        targets = c(0,1),
         visibile = TRUE,
-        "width" = '10',
+        "width" = '5',
         className = 'dt-center'
       ),
       list(
-        targets = c(2),
-        visible = TRUE,
+        targets = c(2,3),
+        visibile = TRUE,
         "width" = '20',
         className = 'dt-center'
       ),
       list(
-        targets = c(14),
-        width = '20',
-        render = JS(
-          "function(data, type, row, meta) {",
-          "return type === 'display' && data.length > 35 ?",
-          "'<span title=\"' + data + '\">' + data.substr(0, 35) + '...</span>' : data;",
-          "}"
-        )
+       targets = c(4),
+       render = DT::JS("DataTable.render.ellipsis(5, false )")
       )
+      # list(
+      #   targets = c(16),
+      #   width = '20',
+      #   render = DT::JS(
+      #     "function(data, type, row, meta) {",
+      #     "return type === 'display' && data.length > 20 ?",
+      #     "'<span title=\"' + data + '\">' + data.substr(0, 35) + '...</span>' : data;",
+      #     "}"
+      #   )
+      # )
     ),
     ordering = TRUE,
     orderClasses = TRUE,
     fixedColumns = list(leftColumns = 1),
     pageLength = 25,
     lengthMenu = c(10, 50, 100, 200)
-    #formatRound(columns = c(sample_col_numbers + 1), digits = 0)
   )
   
   
   data_table_DT <-  DT::datatable(df, rownames = FALSE, options = options)
   
+  #disable text wrapping in data_table_DT
+  data_table_DT <- data_table_DT |> DT::formatStyle(names(df), whiteSpace = 'nowrap')
+  
   cat(file = stderr(), "Function create_data_table_bg...end", "\n")
+  
+  
+  
+  dat <- data.frame(
+    A = c("fnufnufroufrcnoonfrncacfnouafc", "fanunfrpn frnpncfrurnucfrnupfenc"),
+    B = c("DZDOPCDNAL DKODKPODPOKKPODZKPO", "AZERTYUIOPQSDFGHJKLMWXCVBN")
+  )
+  
+  data_table_DT <- DT::datatable(
+    dat, 
+    plugins = "ellipsis",
+    options = list(
+      columnDefs = list(list(
+        targets = c(1,2),
+        render = DT::JS("$.fn.dataTable.render.ellipsis( 17, false )")
+      ))
+    )
+  )
+  
+  
+  
   return(data_table_DT)   
 }
 
