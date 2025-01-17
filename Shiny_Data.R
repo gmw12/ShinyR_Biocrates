@@ -24,6 +24,9 @@ remove_status_cols_bg <- function(params){
   
   #remove columns that contain the word Status from df
   df <- df |> dplyr::select(-contains("Status"))
+  
+  #from df column Plate.note keep only characters to the first .
+  df$Plate.note <- gsub("\\..*", "", df$Plate.note)
 
   write_table_try("data_status", df, params)
   
