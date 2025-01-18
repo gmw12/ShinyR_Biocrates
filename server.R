@@ -61,10 +61,74 @@ shinyServer(function(session, input, output) {
       #reset default dd for data
       set_file_choosers_data(session, input, output, volumes) 
       
+      #update UI
+      ui_render_load_config(session, input, output)
+      create_config_table(session, input, output)
     }
     
   })
   
+  #------------------------------------------------------------------------------------------------------  
+  #Load data file
+  observeEvent(input$sfb_data_file, {
+    
+    cat(file = stderr(), "\n\n","sfb_data_file button clicked...", "\n")
+    
+    if (is.list(input$sfb_data_file)) {
+      
+      #read data files
+      load_data_file(session, input, output, params)
+      
+      #update UI
+      ui_render_load_data(session, input, output)
+      create_data_table(session, input, output, params, "data_raw")
+      
+    }
+    
+  }) 
+  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$remove_status_col, {
+    
+    cat(file = stderr(), "\n\n","remove_status_col clicked...", "\n")
+
+    #remove status columns
+    remove_status_cols(session, input, output, params)
+    
+    create_data_table(session, input, output, params, "data_status")
+
+    cat(file = stderr(), "\n\n","remove_status_col clicked...end", "\n")
+    
+  }) 
+  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$remove_indicators, {
+    
+    cat(file = stderr(), "\n\n","remove_indicators clicked...", "\n")
+    
+    #remove status columns
+    remove_indicators(session, input, output, params)
+    
+    create_data_table(session, input, output, params, "data_no_indicators")
+    
+    cat(file = stderr(), "\n\n","remove_indicators clicked...end", "\n")
+    
+  }) 
+  
+  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$separate_data, {
+    
+    cat(file = stderr(), "\n\n","separate_data clicked...", "\n")
+    
+    #remove status columns
+    separate_data(session, input, output, params)
+    
+    create_data_table(session, input, output, params, "data_start")
+    
+    cat(file = stderr(), "\n\n","separate_data clicked...end", "\n")
+    
+  }) 
   
   
   removeModal()     
