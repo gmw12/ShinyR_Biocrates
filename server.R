@@ -33,7 +33,14 @@ shinyServer(function(session, input, output) {
   
   if (exists('params')) {
     cat(file = stderr(), "params file exists...", "\n\n")
+    ui_render_load_data(session, input, output)
+    ui_render_process_data(session, input, output, params)
+    create_report_table(session, input, output, params)
     
+    if ("data_start" %in% list_tables(params)) {
+      create_data_table(session, input, output, params, "data_start")
+    }
+
 
   }else {
     #fresh start, create default params
@@ -63,7 +70,8 @@ shinyServer(function(session, input, output) {
       
       #update UI
       ui_render_load_config(session, input, output)
-      create_config_table(session, input, output)
+      
+      #create_config_table(session, input, output)
     }
     
   })
@@ -81,54 +89,43 @@ shinyServer(function(session, input, output) {
       
       #update UI
       ui_render_load_data(session, input, output)
-      create_data_table(session, input, output, params, "data_raw")
+      
+      #remove status columns
+      remove_status_cols(session, input, output, params)
+      
+      #remove indicators
+      remove_indicators(session, input, output, params)
+      
+      #separate info and sample data
+      separate_data(session, input, output, params)
+      
+      ui_render_process_data(session, input, output, params)
+      
+      create_data_table(session, input, output, params, "data_start")
+      
+      report_template(session, input, output, params)
+      
+      create_report_table(session, input, output, params)
       
     }
     
   }) 
   
   #------------------------------------------------------------------------------------------------------  
-  observeEvent(input$remove_status_col, {
+  observeEvent(input$replace_lod, {
     
-    cat(file = stderr(), "\n\n","remove_status_col clicked...", "\n")
+    cat(file = stderr(), "\n\n","replace_lod clicked...", "\n")
+    
+    replace_lod(session, input, output, params)
+    
+    create_data_table(session, input, output, params, "data_impute")
 
-    #remove status columns
-    remove_status_cols(session, input, output, params)
+    cat(file = stderr(), "\n\n","replace_lod clicked...end", "\n")
     
-    create_data_table(session, input, output, params, "data_status")
+  }) 
+  
 
-    cat(file = stderr(), "\n\n","remove_status_col clicked...end", "\n")
-    
-  }) 
-  
-  #------------------------------------------------------------------------------------------------------  
-  observeEvent(input$remove_indicators, {
-    
-    cat(file = stderr(), "\n\n","remove_indicators clicked...", "\n")
-    
-    #remove status columns
-    remove_indicators(session, input, output, params)
-    
-    create_data_table(session, input, output, params, "data_no_indicators")
-    
-    cat(file = stderr(), "\n\n","remove_indicators clicked...end", "\n")
-    
-  }) 
-  
-  
-  #------------------------------------------------------------------------------------------------------  
-  observeEvent(input$separate_data, {
-    
-    cat(file = stderr(), "\n\n","separate_data clicked...", "\n")
-    
-    #remove status columns
-    separate_data(session, input, output, params)
-    
-    create_data_table(session, input, output, params, "data_start")
-    
-    cat(file = stderr(), "\n\n","separate_data clicked...end", "\n")
-    
-  }) 
+
   
   
   removeModal()     

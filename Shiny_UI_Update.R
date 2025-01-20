@@ -6,7 +6,7 @@ ui_render_load_config <- function(session, input, output) {
   
   output$data_source <- renderText({str_c("Source:  ", params$data_source)})
   output$file_prefix <- renderText({params$file_prefix})
-  output$config_file_name <- renderText({params$config_file})
+  output$config_file_name <- renderText({stringr::str_c('Config File:  ', params$config_file) })
 
   cat(file = stderr(), "Function ui_render_load_config...end", "\n\n")
   }
@@ -15,9 +15,24 @@ ui_render_load_config <- function(session, input, output) {
 ui_render_load_data <- function(session, input, output) {
   cat(file = stderr(), "Function ui_render_load_data", "\n")
   
-  output$data_file_name <- renderText({params$data_file})
+  output$data_file_name <- renderText({ stringr::str_c('Data File:  ', params$data_file) })
 
   cat(file = stderr(), "Function ui_render_load_data... end", "\n")
+}
+
+#-------------------------------------------------------------------------------------------
+ui_render_process_data <- function(session, input, output, params) {
+  cat(file = stderr(), "Function ui_render_process_data", "\n")
+  
+  output$plate_names <- renderText({ stringr::str_c('Plates:  ', params$plates) })
+  
+  output$plate_count <- renderText({ stringr::str_c('Plates Count:  ', params$plate_number) })
+  
+  output$material_names <- renderText({ stringr::str_c('Materials:  ', params$materials) })
+  
+  output$material_count <- renderText({ stringr::str_c('Material Count:  ', params$material_number) })
+  
+  cat(file = stderr(), "Function ui_render_process_data... end", "\n")
 }
 
 

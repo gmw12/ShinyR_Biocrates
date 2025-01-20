@@ -1,6 +1,47 @@
 cat(file = stderr(), "Shiny_Data.R", "\n")
 
 #---------------------------------------------------------------------
+load_data_file <- function(session, input, output, params){
+  cat(file = stderr(), "Function load_data_file", "\n")
+  showModal(modalDialog("Loading data...", footer = NULL))
+  
+  
+  data_sfb <- parseFilePaths(volumes, input$sfb_data_file)
+  data_path <- str_extract(data_sfb$datapath, "^/.*/")
+  params$data_file <- basename(data_sfb$datapath)
+  
+  cat(file = stderr(), str_c("loading data file(s) from ", data_path[1]), "\n")
+  
+  bg_load_data <- callr::r_bg(func = load_data_bg, args = list(data_sfb, params), stderr = str_c(params$error_path, "//error_load_data.txt"), supervise = TRUE)
+  bg_load_data$wait()
+  print_stderr("error_load_data.txt")
+  
+  #parameters are written to db during r_bg (process cannot write to params directly)
+  params <<- read_table_try("params", params)
+  
+  gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
+  cat(file = stderr(), "Function load_data_file...end", "\n\n")
+  removeModal()
+}
+
+
+#----------------------------------------------------------------------------------------
+load_data_bg <- function(data_sfb, params){
+  cat(file = stderr(), "Function load_data_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- data.table::fread(file = data_sfb$datapath, header = TRUE, skip=1, stringsAsFactors = FALSE, sep = "\t", fill=TRUE)
+  #save(df, file="zdfloadunknowndata")    #  load(file="zdfloadunknowndata") 
+  
+  write_table_try("data_raw", df, params)
+  
+  write_table_try("params", params, params)
+  #save(params, file="params")
+  
+  gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
+  cat(file = stderr(), "function load_unkown_data_bg...end", "\n\n")
+}
+#---------------------------------------------------------------------
 
 remove_status_cols <- function(session, input, output, params){
   cat(file = stderr(), "Function remove_status_cols...", "\n")
@@ -83,16 +124,15 @@ separate_data <- function(session, input, output, params){
   bg_separate_data <- callr::r_bg(separate_data_bg, args = list(params), stderr = str_c(params$error_path, "//error_separate_data.txt"), supervise = TRUE)
   bg_separate_data$wait()
   print_stderr("error_separate_data.txt")
-  
-  analyte_match <- bg_separate_data$result()
+
+  analyte_match <- bg_separate_data$get_result()[[1]]
+  params <<- bg_separate_data$get_result()[[2]]
   
   if (analyte_match == FALSE) {
     shinyalert("Oops!", "Data and Configuration do not match", type = "error")
   }
   
-  
   cat(file = stderr(), "Function separate_data...end", "\n")
-  
 }
 
 
@@ -107,16 +147,24 @@ separate_data_bg <- function(params){
   #find row number for first row with number or letters
   data_rows <- which(grepl("^[0-9]", df[[1]]))
   df_data <- df[data_rows,]
-  df_lod <- df[-data_rows,]
+  df_info <- df[-data_rows,]
   
   df_analytes <- read_table_try("analytes", params)  
   
   #find colnumber for df_analytes$Abbreviation[1]
   col_num <- which(colnames(df) == df_analytes$Abbreviation[1])
-  df_lod <- df_lod[,(col_num - 1):ncol(df_lod)]
+  df_info <- df_info[,(col_num - 1):ncol(df_info)]
+
+  plates <- unique(df_data$Plate.bar.code)
+  params$plate_number <- length(plates)
+  params$plates <- stringr::str_c(plates, collapse = ", ")
+  
+  materials <- unique(df_data$Material)
+  params$material_number <- length(materials)
+  params$materials <- stringr::str_c(materials, collapse = ", ")
   
   write_table_try("data_start", df_data, params)
-  write_table_try("data_lod", df_lod, params)
+  write_table_try("data_info", df_info, params)
   
   #check that analytes and order match
   test_data <- colnames(df[(ncol(df)-nrow(df_analytes)+1):ncol(df)])
@@ -124,17 +172,176 @@ separate_data_bg <- function(params){
   test_data <- gsub("[.()\\+]", "", test_data)
   test_config <- gsub("[.()\\+]", "", df_analytes$Abbreviation)
   
-  if (test_data != test_config) {
-    analyte_match <- FALSE
-  }else{
+  if (all(test_data == test_config)) {
     analyte_match <- TRUE
+  }else{
+    analyte_match <- FALSE
   }
+  
+  cat(file = stderr(), stringr::str_c("Analytes match = ", analyte_match), "\n")
   
   cat(file = stderr(), "Function separate_data_bg...end", "\n")
 
-  return(analyte_match)
+  return(list(analyte_match, params))
     
 }
+
+#---------------------------------------------------------------------
+
+report_template <- function(session, input, output, params){
+  cat(file = stderr(), "Function report_template...", "\n")
+  
+  bg_report_template <- callr::r_bg(report_template_bg, args = list(params), stderr = str_c(params$error_path, "//error_report_template.txt"), supervise = TRUE)
+  bg_report_template$wait()
+  print_stderr("error_report_template.txt")
+
+  
+    
+  cat(file = stderr(), "Function report_template...end", "\n")
+}
+
+#--------------------------------------------------------------
+report_template_bg <- function(params){
+  cat(file = stderr(), "Function report_template_bg...", "\n")
+  
+  source('Shiny_File.R')
+  
+  #create list from params$plates
+  plates <- unlist(stringr::str_split(params$plates, ", "))
+  df_info <- read_table_try("data_info", params)
+  df_report <- read_table_try("Analytes", params)
+
+  df_report$R_colnames <- colnames(df_info[2:ncol(df_info)])
+  
+  df_report_colnames <- colnames(df_report)
+  
+
+  
+  for (plate in plates) {
+    
+    #subset df_info for rows that the first column contains plate
+    df_plate <- df_info[grep(plate, df_info[[1]]),]
+    df_lod <- df_plate[grep("LOD", df_plate[[1]]),]
+    
+    #if any value in row 1 = 0 then the change the value to the value in row 2
+    for (i in 2:ncol(df_lod)) {
+      if (df_lod[1,i] == 0) { df_lod[1,i] <- df_lod[2,i] }
+    }
+  
+    col_name <- stringr::str_c("LOD_", plate, ", uM")
+    df_report_colnames <- c(df_report_colnames, col_name)
+    
+    #create new column called from col_name in df_report
+    df_report[[col_name]] <- t(df_lod[1,2:ncol(df_lod)])
+      
+  }
+  
+  
+  df_lloq <- df_info[grep("LLOQ", df_info[[1]]),]
+  df_uloq <- df_info[grep("ULOQ", df_info[[1]]),]
+    
+  #get column maxs from df_uloq
+  uloq_max <- apply(df_uloq[2:ncol(df_uloq)], 2, max)
+  lloq_min <- apply(df_lloq[2:ncol(df_lloq)], 2, min)
+  
+  col_name <- stringr::str_c("Lowest CS, uM")
+  df_report_colnames <- c(df_report_colnames, col_name)
+  df_report[[col_name]] <- lloq_min
+    
+  col_name <- stringr::str_c("Highest CS, uM")
+  df_report_colnames <- c(df_report_colnames, col_name)
+  df_report[[col_name]] <- uloq_max
+    
+  colnames(df_report) <- df_report_colnames
+  
+  write_table_try("Report", df_report, params)
+  
+  cat(file = stderr(), "Function report_template_bg...end", "\n")
+}
+
+
+
+#---------------------------------------------------------------------
+
+replace_lod <- function(session, input, output, params){
+  cat(file = stderr(), "Function replace_lod...", "\n")
+  
+  params$fixed_lod <- input$fixed_lod
+  
+  bg_replace_lod <- callr::r_bg(replace_lod_bg, args = list(params), stderr = str_c(params$error_path, "//error_replace_lod.txt"), supervise = TRUE)
+  bg_replace_lod$wait()
+  print_stderr("error_replace_lod.txt")
+  
+  params <<- params
+  
+  cat(file = stderr(), "Function replace_lod...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+replace_lod_bg <- function(params){
+  cat(file = stderr(), "Function replace_lod_bg...", "\n")
+  
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_start", params)
+  df_report <- read_table_try("Report", params)
+  
+  #sort df by plate.bar.code and reindex
+  df <- df[order(df$Plate.bar.code),]
+  rownames(df) <- NULL
+  
+  df_info <- df[,1:(ncol(df)-nrow(df_report))]
+  df_data <- df[,(ncol(df)-nrow(df_report)+1):ncol(df) ]
+  
+  #find rows in df_data that contain 'LOD'
+  
+  #fill df_random with random numbers between 0 and 1
+  set.seed(1234)
+  df_random <- df_data
+  for (i in 1:ncol(df_random)) {
+    df_random[[i]] <- runif(nrow(df_random), min = 0.1, max = 1)
+  }
+  
+  
+  for (r in 1:nrow(df_data)) {
+    #find columns in df_data that contain 'LOD'
+    find_lod_cols <- which(grepl("LOD", df_data[r,]), arr.ind = TRUE)
+    plate <- gsub("-", ".", df_info$Plate.bar.code[r])
+    #find column in df_report that contains 'LOD' and plate
+    find_plate_lod_col <- which(grepl(plate, colnames(df_report)), arr.ind = TRUE )
+    #loop through columns and replace values with values from df_report
+    if (length(find_lod_cols) >=1 ) { 
+      for (c in find_lod_cols) {
+        if (params$fixed_lod){
+          df_data[r,c] <- as.numeric(df_report[c,find_plate_lod_col], digits = 3)
+        }else {
+          df_data[r,c] <- round(df_random[r,c] * as.numeric(df_report[c,find_plate_lod_col]), digits = 3)
+      }
+    }
+   }
+  }
+  
+  df_final <- cbind(df_info, df_data)
+  
+  write_table_try("data_impute", df_final, params)
+  
+  cat(file = stderr(), "Function replace_lod_bg...end", "\n")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #---------------------------------------------------------------------
@@ -210,47 +417,7 @@ load_archive_file <- function(session, input, output){
   return(archive_zip)
 }
 
-#---------------------------------------------------------------------
-load_data_file <- function(session, input, output, params){
-  cat(file = stderr(), "Function load_data_file", "\n")
-  showModal(modalDialog("Loading data...", footer = NULL))
-  
-  
-  data_sfb <- parseFilePaths(volumes, input$sfb_data_file)
-  data_path <- str_extract(data_sfb$datapath, "^/.*/")
-  params$data_file <- basename(data_sfb$datapath)
-  
-  cat(file = stderr(), str_c("loading data file(s) from ", data_path[1]), "\n")
 
-  bg_load_data <- callr::r_bg(func = load_data_bg, args = list(data_sfb, params), stderr = str_c(params$error_path, "//error_load_data.txt"), supervise = TRUE)
-  bg_load_data$wait()
-  print_stderr("error_load_data.txt")
-
-  #parameters are written to db during r_bg (process cannot write to params directly)
-  params <<- read_table_try("params", params)
-  
-  gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
-  cat(file = stderr(), "Function load_data_file...end", "\n\n")
-  removeModal()
-}
-
-
-#----------------------------------------------------------------------------------------
-load_data_bg <- function(data_sfb, params){
-  cat(file = stderr(), "Function load_data_bg...", "\n")
-  source('Shiny_File.R')
-  
-  df <- data.table::fread(file = data_sfb$datapath, header = TRUE, skip=1, stringsAsFactors = FALSE, sep = "\t", fill=TRUE)
-  #save(df, file="zdfloadunknowndata")    #  load(file="zdfloadunknowndata") 
-  
-  write_table_try("data_raw", df, params)
- 
-  write_table_try("params", params, params)
-  #save(params, file="params")
-  
-  gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
-  cat(file = stderr(), "function load_unkown_data_bg...end", "\n\n")
-}
 
 
 

@@ -55,13 +55,11 @@ body <- dashboardBody(
                            fluidRow(align = "center", shinyFilesButton('sfb_config_file', label = 'Load Configuration File', title = 'Please select excel design file', multiple = FALSE,
                                                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4; display:center")),
                            
-                           span(textOutput("config_file_name"), style = "color:blue; font-size:16px"),
-                           
                            tags$h4("3. Select data file(s).."),
                            
                            fluidRow(align = "center", shinyFilesButton('sfb_data_file', label = 'Select Data File', title = 'Please select data file(s)', multiple = FALSE,
                                                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")),
-                           span(textOutput("data_file_name"), style = "color:blue; font-size:16px")
+                          
                        ),
                        
                        box(title = "Start from Previous Analysis", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "center", width = 12, height = 200,
@@ -69,13 +67,27 @@ body <- dashboardBody(
                            fluidRow(align = "center", shinyFilesButton('sfb_archive_file', label = 'Select Archive/Zip File', title = 'Please select zip file', multiple = FALSE,
                                                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")),
                            span(textOutput("archive_file_name"), style = "color:blue; font-size:16px")
+                        
                        )
                      )),
               
               
               column(width = 8,  
-                     box(title = "Configuration File", status = "primary", solidHeader = TRUE, collapsible = FALSE, width = 12, height = 725,
-                         rHandsontableOutput("config_table")
+                     box(title = "Log", status = "primary", solidHeader = TRUE, collapsible = FALSE, width = 12, height = 725,
+                         
+                         span(textOutput("config_file_name"), style = "color:blue; font-size:16px"), 
+                         br(),
+                         span(textOutput("data_file_name"), style = "color:blue; font-size:16px"),
+                         br(),
+                         span(textOutput("plate_names"), style = "color:blue; font-size:16px"), 
+                         br(),
+                         span(textOutput("plate_count"), style = "color:blue; font-size:16px"),
+                         br(),
+                         span(textOutput("material_names"), style = "color:blue; font-size:16px"), 
+                         br(),
+                         span(textOutput("material_count"), style = "color:blue; font-size:16px"),
+                         br()
+                         
                      ))
             )
     ),
@@ -87,33 +99,42 @@ body <- dashboardBody(
               column(width = 2,
                      fluidRow(
                        box(id = "param_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
-                           
-                           actionButton("remove_status_col", label = "Remove Status Columns",
+                          br(),
+                          checkboxInput("fixed_lod", label = "Use Fixed LOD", value = FALSE),
+                          actionButton("replace_lod", label = "Impute LOD", width = 100,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                           br(),
-                          br(),
-                       
-                           actionButton("remove_indicators", label = "Remove Indicators",
-                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                          br(),
-                          br(),
+                          br()
                           
-                          actionButton("separate_data", label = "Separate Data and LOD",
-                                       style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                        )
                        
                        )),
               
               column(width = 10,  
                      fluidRow(
-                       box(title = "Biocrates Data", status = "primary", solidHeader = TRUE, collapsible = FALSE, width = 12, height = 750,
-                        column(width =12, offset =0,
-                            hr(),
-                            tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
-                            DT::dataTableOutput("data_table", width ='100%')
-                       )))
+                       tabBox(id="process_data", width = 12, height = 750,
+                        
+                        tabPanel("Report",
+                           column(width =12, offset =0,
+                              hr(),
+                              tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
+                              DT::dataTableOutput("report_table", width ='100%')
+                           )
+                          ),
+                              
+                        tabPanel("Data",
+                          column(width =12, offset =0,
+                              hr(),
+                              tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
+                              DT::dataTableOutput("data_table", width ='100%')
+                            )
+                          )
+                        
+
+                       )
             )
       )
+    )
     ),
     
 

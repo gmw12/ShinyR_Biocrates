@@ -2,41 +2,63 @@ cat(file = stderr(), "Shiny_Tables.R", "\n")
 
 #------------------------------------------------------------------------
 #load design table
-create_config_table <- function(session, input, output){
-  cat(file = stderr(), "Function create_config_table", "\n")
+create_report_table <- function(session, input, output, params){
+  cat(file = stderr(), "Function create_report_table", "\n")
   #showModal(modalDialog("Creating design table...", footer = NULL))
   
-  bg_config_table <- callr::r_bg(create_config_table_bg, args = list(params$database_path), stderr = str_c(params$error_path, "//error_config_table.txt"), supervise = TRUE)
-  bg_config_table$wait()
-  print_stderr("error_config_table.txt")
+  bg_report_table <- callr::r_bg(create_report_table_bg, args = list(params), stderr = str_c(params$error_path, "//error_report_table.txt"), supervise = TRUE)
+  bg_report_table$wait()
+  print_stderr("error_report_table.txt")
   
-  config_DT <- bg_config_table$get_result()
-  output$config_table <- renderRHandsontable(config_DT)
+  df <- bg_report_table$get_result()[[1]]
+  options <- bg_report_table$get_result()[[2]]
   
-  cat(file = stderr(), "Function create_config_table...end", "\n\n")
+  report_table_DT <-  DT::datatable(df, rownames = FALSE, options = options)
+  output$report_table <- DT::renderDataTable(report_table_DT)
+  
+  cat(file = stderr(), "Function create_report_table...end", "\n\n")
   #removeModal()
 }
 
 #--------------------------------
 
-create_config_table_bg <- function(database_path){
-  cat(file = stderr(), "Function create_config_table_bg", "\n")
+create_report_table_bg <- function(params){
+  cat(file = stderr(), "Function create_report_table_bg", "\n")
+  source("Shiny_File.R")
   
   #get raw_datadata
-  conn <- RSQLite::dbConnect(RSQLite::SQLite(), database_path)
-  config <- RSQLite::dbReadTable(conn, "Analytes", config)
-  RSQLite::dbDisconnect(conn)
-    
-  config <- config |> dplyr::mutate_all(as.character)
+  df_report <- read_table_try("Report", params)
+
+  options <- list(
+    selection = 'single',
+    autoWidth = TRUE,
+    scrollX = TRUE,
+    scrollY = 500,
+    scrollCollapse = TRUE,
+    columnDefs = list(
+      list(
+        targets = c(1),
+        visibile = TRUE,
+        "width" = '5',
+        className = 'dt-center'
+      ),
+      list(
+        targets = c(2),
+        visible = TRUE,
+        "width" = '50',
+        className = 'dt-center'
+      )
+    ),
+    ordering = TRUE,
+    orderClasses = TRUE,
+    fixedColumns = list(leftColumns = 1),
+    pageLength = 20,
+    lengthMenu = c(20, 50, 100)
+  )
   
-  config_DT <- rhandsontable::rhandsontable(config, readOnly = TRUE, rowHeaders = NULL, digits = 0) #|> 
-  #  rhandsontable::hot_col(col = 'ID', halign = 'htCenter') |>
-  #  rhandsontable::hot_col(col = 'Replicate', halign = 'htCenter') |>
-  # rhandsontable::hot_col(col = 'Label', halign = 'htCenter') |>
-  #  rhandsontable::hot_col(col = 'Group', halign = 'htCenter')
+  cat(file = stderr(), "Function create_report_table_bg...end", "\n")
   
-  cat(file = stderr(), "Function create_config_table_bg...end", "\n")
-  return(config_DT)   
+  return(list(df_report, options))   
 }
 
 #------------------------------------------------------------------------

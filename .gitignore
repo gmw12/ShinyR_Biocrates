@@ -5,6 +5,9 @@
 # Session Data files
 .RData
 .RDataTmp
+.DS_Store
+.db
+.Rproj
 
 # User-specific files
 .Ruserdata
@@ -31,6 +34,11 @@ vignettes/*.pdf
 # knitr and R markdown default cache directories
 *_cache/
 /cache/
+/data/
+/project_date/
+/database/
+/database/.db
+database/
 
 # Temporary files created by R markdown
 *.utf8.md

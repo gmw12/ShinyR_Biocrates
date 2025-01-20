@@ -16,7 +16,7 @@ library(shinyWidgets)
 library(shinydashboard)
 library(shinyFiles)
 library(shinyalert)
-library(shinyBS)
+#library(shinyBS)
 
 #basic
 library(tidyverse)
