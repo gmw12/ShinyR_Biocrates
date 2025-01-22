@@ -430,6 +430,102 @@ qc_calc_bg <- function(params){
   cat(file = stderr(), "Function qc_calc_bg...end", "\n")
 }
 
+#---------------------------------------------------------------------
+
+material_calc <- function(session, input, output, params){
+  cat(file = stderr(), "Function material_calc...", "\n")
+  
+  input_material_select <- input$material_select
+  
+  bg_material_calc <- callr::r_bg(material_calc_bg, args = list(params, input_material_select), stderr = str_c(params$error_path, "//error_material_calc.txt"), supervise = TRUE)
+  bg_material_calc$wait()
+  print_stderr("error_material_calc.txt")
+  
+  cat(file = stderr(), "Function material_calc...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+material_calc_bg <- function(params, input_material_select){
+  cat(file = stderr(), "Function material_calc_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_impute", params)
+  
+  for (material in input_material_select) {
+    df_material <- df[grep(material, df$Material),]
+    write_table_try(material, df_material, params)
+  }
+  
+  
+  cat(file = stderr(), "Function material_calc_bg...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+spqc_filter <- function(session, input, output, params){
+  cat(file = stderr(), "Function spqc_filter...", "\n")
+  
+  input_material_select <- input$material_select
+  
+  bg_spqc_filter <- callr::r_bg(spqc_filter_bg, args = list(params, input_material_select), stderr = str_c(params$error_path, "//error_spqc_filter.txt"), supervise = TRUE)
+  bg_spqc_filter$wait()
+  print_stderr("error_spqc_filter.txt")
+  
+  cat(file = stderr(), "Function spqc_filter...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+spqc_filter_bg <- function(params){
+  cat(file = stderr(), "Function spqc_filter_bg...", "\n")
+  source('Shiny_File.R')  
+
+  
+  cat(file = stderr(), "Function spqc_filter_bg...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+missing_filter <- function(session, input, output, params){
+  cat(file = stderr(), "Function missing_filter...", "\n")
+  
+  input_material_select <- input$material_select
+  
+  bg_missing_filter <- callr::r_bg(missing_filter_bg, args = list(params, input_material_select), stderr = str_c(params$error_path, "//error_missing_filter.txt"), supervise = TRUE)
+  bg_missing_filter$wait()
+  print_stderr("error_missing_filter.txt")
+  
+  cat(file = stderr(), "Function missing_filter...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+missing_filter_bg <- function(params){
+  cat(file = stderr(), "Function missing_filter_bg...", "\n")
+  source('Shiny_File.R')
+  
+
+  
+  cat(file = stderr(), "Function missing_filter_bg...end", "\n")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

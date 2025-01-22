@@ -151,6 +151,18 @@ shinyServer(function(session, input, output) {
     
   }) 
 
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$material_calc, {
+    
+    cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
+    
+    material_calc(session, input, output, params)
+    
+    cat(file = stderr(), "\n\n","material_calc clicked...end", "\n")
+    
+  }) 
+  
+  
   
   
   removeModal()     
