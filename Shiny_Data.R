@@ -331,15 +331,103 @@ replace_lod_bg <- function(params){
 
 
 
+#---------------------------------------------------------------------
+
+spqc_calc <- function(session, input, output, params){
+  cat(file = stderr(), "Function spqc_calc...", "\n")
+  
+  bg_spqc_calc <- callr::r_bg(spqc_calc_bg, args = list(params), stderr = str_c(params$error_path, "//error_spqc_calc.txt"), supervise = TRUE)
+  bg_spqc_calc$wait()
+  print_stderr("error_spqc_calc.txt")
+  
+  cat(file = stderr(), "Function spqc_calc...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+spqc_calc_bg <- function(params){
+  cat(file = stderr(), "Function spqc_calc_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_impute", params)
+  df_report <- read_table_try("Report", params)
+  
+  #subset of data with "SPQC" in Sample.description
+  df_spqc <- df[grep("SPQC", df$Sample.description),]
+  plates <- unique(df_spqc$Plate.bar.code)
+  materials <- unique(df_spqc$Material)
+  
+
+  for (material in materials) {
+    df_material <- df_spqc[grep(material, df_spqc$Material),]
+    df_material <- df_material[,(ncol(df_material)-nrow(df_report)+1):ncol(df_material)]
+    #set df_material to numeric
+    df_material <- as.data.frame(lapply(df_material, as.numeric))
+    df_mean <- round(colMeans(df_material, na.rm = TRUE), digits = 3)
+    #calc the %CV from columns of df_material
+    df_cv <- round(100 * (apply(df_material, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
+    df_report[stringr::str_c("Average ", material, " SPQC(uM)")] <- df_mean
+    df_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- df_cv
+  }
+
+  write_table_try("Report", df_report, params)
+  
+  cat(file = stderr(), "Function spqc_calc_bg...end", "\n")
+}
 
 
+#---------------------------------------------------------------------
+
+qc_calc <- function(session, input, output, params){
+  cat(file = stderr(), "Function qc_calc...", "\n")
+  
+  bg_qc_calc <- callr::r_bg(qc_calc_bg, args = list(params), stderr = str_c(params$error_path, "//error_qc_calc.txt"), supervise = TRUE)
+  bg_qc_calc$wait()
+  print_stderr("error_qc_calc.txt")
+  
+  cat(file = stderr(), "Function qc_calc...end", "\n")
+}
 
 
+#---------------------------------------------------------------------
 
-
-
-
-
+qc_calc_bg <- function(params){
+  cat(file = stderr(), "Function qc_calc_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_impute", params)
+  df_report <- read_table_try("Report", params)
+  df_qc_info <- read_table_try("QC", params)
+  
+  df_qc_report <- df_report[,1:2]
+  
+  qc_list <- c("QC1", "QC2", "QC3")
+ 
+  #subset of data with "QC" in Sample.description
+  df_qc <- df[grep("QC", df$Sample.identification),]
+  plates <- unique(df_qc$Plate.bar.code)
+  
+  for (qc in qc_list) {
+    qc_level <- df_qc_info[grep(qc, df_qc_info$Expected.values),]
+    qc_std_levels <- unlist(qc_level[3:ncol(qc_level)]) 
+    df_qc_report[stringr::str_c(qc, " Level (uM)")] <- qc_std_levels
+    for (plate in plates) {
+      df_plate <- df_qc[grep(plate, df_qc$Plate.bar.code),]
+      df_plate <- df_plate[grep(qc, df_plate$Sample.identification),]
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
+      #set df_plate to numeric
+      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      df_mean <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+      df_qc_report[stringr::str_c(qc, " ", plate, " Mean (uM)")] <- df_mean
+      #calc the %CV from columns of df_plate
+      df_acc <- round(100 * (df_mean/qc_std_levels), digits = 1)
+      df_qc_report[stringr::str_c(qc, " ", plate, " Accuracy")] <- df_acc
+    }
+  }
+  
+  
+  cat(file = stderr(), "Function qc_calc_bg...end", "\n")
+}
 
 
 
