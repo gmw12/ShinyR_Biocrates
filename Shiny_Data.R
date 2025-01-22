@@ -436,6 +436,7 @@ material_calc <- function(session, input, output, params){
   cat(file = stderr(), "Function material_calc...", "\n")
   
   input_material_select <- input$material_select
+  params$material_select <<- stringr::str_c(input_material_select, collapse = ",")
   
   bg_material_calc <- callr::r_bg(material_calc_bg, args = list(params, input_material_select), stderr = str_c(params$error_path, "//error_material_calc.txt"), supervise = TRUE)
   bg_material_calc$wait()
@@ -463,53 +464,51 @@ material_calc_bg <- function(params, input_material_select){
 
 #---------------------------------------------------------------------
 
-spqc_filter <- function(session, input, output, params){
+spqc_missing_filter <- function(session, input, output, params){
   cat(file = stderr(), "Function spqc_filter...", "\n")
+
+  input_spqc_filter <- input$spqc_filter
+  input_spqc_filter_value <- input$spqc_filter_value
   
-  input_material_select <- input$material_select
+  input_missing_filter <- input$missing_filter
+  input_missing_filter_value <- input$missing_filter_value
   
-  bg_spqc_filter <- callr::r_bg(spqc_filter_bg, args = list(params, input_material_select), stderr = str_c(params$error_path, "//error_spqc_filter.txt"), supervise = TRUE)
-  bg_spqc_filter$wait()
-  print_stderr("error_spqc_filter.txt")
+    
+  bg_spqc_missing_filter <- callr::r_bg(spqc_missing_filter_bg, 
+          args = list(params, input_spqc_filter, input_spqc_filter_value, input_missing_filter, input_missing_filter_value), 
+          stderr = str_c(params$error_path, "//error_spqc_missing_filter.txt"), supervise = TRUE)
+  bg_spqc_missing_filter$wait()
+  print_stderr("error_spqc_missing_filter.txt")
   
-  cat(file = stderr(), "Function spqc_filter...end", "\n")
+  cat(file = stderr(), "Function spqc_missing_filter...end", "\n")
 }
 
 #---------------------------------------------------------------------
 
-spqc_filter_bg <- function(params){
-  cat(file = stderr(), "Function spqc_filter_bg...", "\n")
+spqc_missing_filter_bg <- function(params, input_spqc_filter, input_spqc_filter_value, input_missing_filter, input_missing_filter_value){
+  cat(file = stderr(), "Function spqc_missing_filter_bg...", "\n")
   source('Shiny_File.R')  
 
+  materials <- unlist(stringr::str_split(params$material_select, ","))  
   
-  cat(file = stderr(), "Function spqc_filter_bg...end", "\n")
+  for (material in materials) {
+    df_material <- read_table_try(material, params)
+    
+    if (input_spqc_filter) {
+      df_material <- df_material[which(df_material$SPQC == input_spqc_filter_value),]
+    }
+    
+    if (input_missing_filter) {
+      df_material <- df_material[which(df_material$Missing == input_missing_filter_value),]
+    }
+    
+    write_table_try(material, df_material, params)
+    
+    
+  }
+
+  cat(file = stderr(), "Function spqc_missing_filter_bg...end", "\n")
 }
-
-#---------------------------------------------------------------------
-
-missing_filter <- function(session, input, output, params){
-  cat(file = stderr(), "Function missing_filter...", "\n")
-  
-  input_material_select <- input$material_select
-  
-  bg_missing_filter <- callr::r_bg(missing_filter_bg, args = list(params, input_material_select), stderr = str_c(params$error_path, "//error_missing_filter.txt"), supervise = TRUE)
-  bg_missing_filter$wait()
-  print_stderr("error_missing_filter.txt")
-  
-  cat(file = stderr(), "Function missing_filter...end", "\n")
-}
-
-#---------------------------------------------------------------------
-
-missing_filter_bg <- function(params){
-  cat(file = stderr(), "Function missing_filter_bg...", "\n")
-  source('Shiny_File.R')
-  
-
-  
-  cat(file = stderr(), "Function missing_filter_bg...end", "\n")
-}
-
 
 
 

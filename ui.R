@@ -115,10 +115,10 @@ body <- dashboardBody(
                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                           hr(),
                           tags$b("Preprocess/Filter Data"),
-                          checkboxInput("cv_filter", label = "SPQC %CV Filter", value = FALSE),
-                          numericInput("cv_filter_value", label = "Max %CV", value = 30, min = 0, max = 100),
-                          checkboxInput("lod_filter", label = "Max% <LOD values", value = FALSE),
-                          numericInput("lod_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
+                          checkboxInput("sqpc_filter", label = "SPQC %CV Filter", value = FALSE),
+                          numericInput("spqc_filter_value", label = "Max %CV", value = 30, min = 0, max = 100),
+                          checkboxInput("missing_filter", label = "Max% <LOD values", value = FALSE),
+                          numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
                           actionButton("filter_calc", label = "Preprocess Data", width = 150,
                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                           
