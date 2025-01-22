@@ -100,12 +100,21 @@ body <- dashboardBody(
                      fluidRow(
                        box(id = "param_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
                           br(),
+                          tags$h4("Impute Missing Values, <LOD"),
                           checkboxInput("fixed_lod", label = "Use Fixed LOD", value = FALSE),
                           actionButton("replace_lod", label = "Impute LOD", width = 100,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                           br(),
-                          br()
-                          
+                          hr(),
+                          tags$h4("Process data for SPQC and QC samples"),
+                          actionButton("spqc_qc_calc", label = "SPQC/QC Calc", width = 100,
+                                       style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                          br(),
+                          hr(),
+                          tags$h4("Select Materials for Data Output"),
+                          pickerInput(inputId = "material_select", label = "Materials",  choices = c("1", "2", "3"), 
+                                      selected = "1", options = list(`actions-box` = TRUE, size = 100,
+                                                                       `selected-text-format` = "count > 5"),  multiple = TRUE)
                        )
                        
                        )),
@@ -128,7 +137,15 @@ body <- dashboardBody(
                               tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
                               DT::dataTableOutput("data_table", width ='100%')
                             )
-                          )
+                          ),
+                        
+                        tabPanel("QC",
+                                 column(width =12, offset =0,
+                                        hr(),
+                                        tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
+                                        DT::dataTableOutput("qc_table", width ='100%')
+                                 )
+                        )
                         
 
                        )

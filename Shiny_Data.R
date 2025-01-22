@@ -157,11 +157,11 @@ separate_data_bg <- function(params){
 
   plates <- unique(df_data$Plate.bar.code)
   params$plate_number <- length(plates)
-  params$plates <- stringr::str_c(plates, collapse = ", ")
+  params$plates <- stringr::str_c(plates, collapse = ",")
   
   materials <- unique(df_data$Material)
   params$material_number <- length(materials)
-  params$materials <- stringr::str_c(materials, collapse = ", ")
+  params$materials <- stringr::str_c(materials, collapse = ",")
   
   write_table_try("data_start", df_data, params)
   write_table_try("data_info", df_info, params)
@@ -207,7 +207,7 @@ report_template_bg <- function(params){
   source('Shiny_File.R')
   
   #create list from params$plates
-  plates <- unlist(stringr::str_split(params$plates, ", "))
+  plates <- unlist(stringr::str_split(params$plates, ","))
   df_info <- read_table_try("data_info", params)
   df_report <- read_table_try("Analytes", params)
 

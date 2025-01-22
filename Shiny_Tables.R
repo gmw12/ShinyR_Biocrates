@@ -1,106 +1,4 @@
 cat(file = stderr(), "Shiny_Tables.R", "\n")
-
-#------------------------------------------------------------------------
-#load design table
-create_report_table <- function(session, input, output, params){
-  cat(file = stderr(), "Function create_report_table", "\n")
-  #showModal(modalDialog("Creating design table...", footer = NULL))
-  
-  bg_report_table <- callr::r_bg(create_report_table_bg, args = list(params), stderr = str_c(params$error_path, "//error_report_table.txt"), supervise = TRUE)
-  bg_report_table$wait()
-  print_stderr("error_report_table.txt")
-  
-  df <- bg_report_table$get_result()[[1]]
-  options <- bg_report_table$get_result()[[2]]
-  
-  report_table_DT <-  DT::datatable(df, rownames = FALSE, options = options)
-  output$report_table <- DT::renderDataTable(report_table_DT)
-  
-  cat(file = stderr(), "Function create_report_table...end", "\n\n")
-  #removeModal()
-}
-
-#--------------------------------
-
-create_report_table_bg <- function(params){
-  cat(file = stderr(), "Function create_report_table_bg", "\n")
-  source("Shiny_File.R")
-  
-  #get raw_datadata
-  df_report <- read_table_try("Report", params)
-
-  options <- list(
-    selection = 'single',
-    autoWidth = TRUE,
-    scrollX = TRUE,
-    scrollY = 500,
-    scrollCollapse = TRUE,
-    columnDefs = list(
-      list(
-        targets = c(1),
-        visibile = TRUE,
-        "width" = '5',
-        className = 'dt-center'
-      ),
-      list(
-        targets = c(2),
-        visible = TRUE,
-        "width" = '50',
-        className = 'dt-center'
-      )
-    ),
-    ordering = TRUE,
-    orderClasses = TRUE,
-    fixedColumns = list(leftColumns = 1),
-    pageLength = 20,
-    lengthMenu = c(20, 50, 100)
-  )
-  
-  cat(file = stderr(), "Function create_report_table_bg...end", "\n")
-  
-  return(list(df_report, options))   
-}
-
-#------------------------------------------------------------------------
-#load design table
-create_stats_design_table <- function(session, input, output){
-  cat(file = stderr(), "Function create_stats_design_table", "\n")
-  #showModal(modalDialog("Creating stats design table...", footer = NULL))
-  
-  bg_designtable <- callr::r_bg(create_stats_design_table_bg, args = list(params$database_path), stderr = str_c(params$error_path, "//error_statsdesigntable.txt"), supervise = TRUE)
-  bg_designtable$wait()
-  print_stderr("error_statsdesigntable.txt")
-  
-  design_DT <- bg_designtable$get_result()
-  output$stats_design_table2 <-  renderRHandsontable(design_DT)
-
-  cat(file = stderr(), "Function create_stats_design_table...end", "\n")
-  #removeModal()
-}
-
-#--------------------------------
-
-create_stats_design_table_bg <- function(database_path){
-  cat(file = stderr(), "Function build_design_table_bg", "\n")
-  
-  #get design data
-  conn <- RSQLite::dbConnect(RSQLite::SQLite(), database_path)
-  design <- RSQLite::dbReadTable(conn, "design", design)
-  RSQLite::dbDisconnect(conn)
-
-  design <- design[, c("ID", "Replicate", "Label", "Group")] |> dplyr::mutate_all(as.character)
-  colnames(design) <- c("ID", "Replicate", "Label", "Group")
-  
-  design_DT <- rhandsontable::rhandsontable(design, readOnly = TRUE, rowHeaders = NULL, digits = 0) |> 
-    rhandsontable::hot_col(col = 'ID', halign = 'htCenter') |>
-    rhandsontable::hot_col(col = 'Replicate', halign = 'htCenter') |>
-    rhandsontable::hot_col(col = 'Label', halign = 'htCenter') |>
-    rhandsontable::hot_col(col = 'Group', halign = 'htCenter')
-  
-  cat(file = stderr(), "Function create_stats_design_table_bg...end", "\n")
-  return(design_DT)   
-}
-
 #--------------------------------------------------------------------------------------------------------------------
 
 
@@ -113,11 +11,11 @@ create_data_table <- function(session, input, output, params, table_name){
   bg_datatable <- callr::r_bg(create_data_table_bg, args = list(params, table_name), stderr = stringr::str_c(params$error_path, "//error_datatable.txt"), supervise = TRUE)
   bg_datatable$wait()
   print_stderr("error_datatable.txt")
-
+  
   df <- bg_datatable$get_result()[[1]]
   options <- bg_datatable$get_result()[[2]]
   
-  data_table_DT <-  DT::datatable(df, rownames = FALSE, options = options)
+  data_table_DT <-  DT::datatable(df, rownames = FALSE, extensions = "FixedColumns", options = options)
   output$data_table <- DT::renderDataTable(data_table_DT)
   
   cat(file = stderr(), "Function create_data_table...end", "\n")
@@ -169,11 +67,187 @@ create_data_table_bg <- function(params, table_name){
     pageLength = 10,
     lengthMenu = c(10, 50, 100, 200)
   )
-
+  
   cat(file = stderr(), "Function create_data_table_bg...end", "\n")
   
   return(list(df, options))   
 }
+
+#------------------------------------------------------------------------
+#load design table
+create_report_table <- function(session, input, output, params){
+  cat(file = stderr(), "Function create_report_table", "\n")
+  #showModal(modalDialog("Creating design table...", footer = NULL))
+  
+  bg_report_table <- callr::r_bg(create_report_table_bg, args = list(params), stderr = str_c(params$error_path, "//error_report_table.txt"), supervise = TRUE)
+  bg_report_table$wait()
+  print_stderr("error_report_table.txt")
+  
+  df <- bg_report_table$get_result()[[1]]
+  options <- bg_report_table$get_result()[[2]]
+  
+  report_table_DT <-  DT::datatable(df, rownames = FALSE, extensions = "FixedColumns", options = options)
+  output$report_table <- DT::renderDataTable(report_table_DT)
+  
+  cat(file = stderr(), "Function create_report_table...end", "\n\n")
+  #removeModal()
+}
+
+#--------------------------------
+
+create_report_table_bg <- function(params){
+  cat(file = stderr(), "Function create_report_table_bg", "\n")
+  source("Shiny_File.R")
+  
+  #get raw_datadata
+  df_report <- read_table_try("Report", params)
+
+  options <- list(
+    selection = 'single',
+    autoWidth = TRUE,
+    scrollX = TRUE,
+    scrollY = 500,
+    scrollCollapse = TRUE,
+    columnDefs = list(
+      list(
+        targets = c(1),
+        visibile = TRUE,
+        "width" = '5',
+        className = 'dt-center'
+      ),
+      list(
+        targets = c(2),
+        visible = TRUE,
+        "width" = '50',
+        className = 'dt-center'
+      )
+    ),
+    ordering = TRUE,
+    orderClasses = TRUE,
+    fixedColumns = list(leftColumns = 1),
+    pageLength = 20,
+    lengthMenu = c(20, 50, 100)
+  )
+  
+  cat(file = stderr(), "Function create_report_table_bg...end", "\n")
+  
+  return(list(df_report, options))   
+}
+
+
+#------------------------------------------------------------------------
+#load design table
+create_qc_table <- function(session, input, output, params){
+  cat(file = stderr(), "Function qc_table", "\n")
+  #showModal(modalDialog("Creating design table...", footer = NULL))
+  
+  bg_qc_table <- callr::r_bg(create_qc_table_bg, args = list(params), stderr = str_c(params$error_path, "//error_qc_table.txt"), supervise = TRUE)
+  bg_qc_table$wait()
+  print_stderr("error_qc_table.txt")
+  
+  df <- bg_qc_table$get_result()[[1]]
+  options <- bg_qc_table$get_result()[[2]]
+  
+  qc_table_DT <-  DT::datatable(df, rownames = FALSE, extensions = "FixedColumns", options = options)
+  output$qc_table <- DT::renderDataTable(qc_table_DT)
+  
+  cat(file = stderr(), "Function create_qc_table...end", "\n\n")
+  #removeModal()
+}
+
+#--------------------------------
+
+create_qc_table_bg <- function(params){
+  cat(file = stderr(), "Function create_qc_table_bg", "\n")
+  source("Shiny_File.R")
+  
+  #get raw_datadata
+  df_qc <- read_table_try("QC_Report", params)
+  
+  options <- list(
+    fixedColumns = list(leftColumns = 1),
+    autoWidth = TRUE,
+    scrollX = TRUE,
+    scrollY = 500,
+    scrollCollapse = TRUE,
+    columnDefs = list(
+      list(
+        targets = c(1),
+        visibile = TRUE,
+        "width" = '5',
+        className = 'dt-center'
+      ),
+      list(
+        targets = c(2),
+        visible = TRUE,
+        "width" = '50',
+        className = 'dt-center'
+      )
+    ),
+    ordering = TRUE,
+    orderClasses = TRUE,
+    pageLength = 20,
+    lengthMenu = c(20, 50, 100)
+  )
+  
+  cat(file = stderr(), "Function create_qc_table_bg...end", "\n")
+  
+  return(list(df_qc, options))   
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+#------------------------------------------------------------------------
+#load design table
+create_stats_design_table <- function(session, input, output){
+  cat(file = stderr(), "Function create_stats_design_table", "\n")
+  #showModal(modalDialog("Creating stats design table...", footer = NULL))
+  
+  bg_designtable <- callr::r_bg(create_stats_design_table_bg, args = list(params$database_path), stderr = str_c(params$error_path, "//error_statsdesigntable.txt"), supervise = TRUE)
+  bg_designtable$wait()
+  print_stderr("error_statsdesigntable.txt")
+  
+  design_DT <- bg_designtable$get_result()
+  output$stats_design_table2 <-  renderRHandsontable(design_DT)
+
+  cat(file = stderr(), "Function create_stats_design_table...end", "\n")
+  #removeModal()
+}
+
+#--------------------------------
+
+create_stats_design_table_bg <- function(database_path){
+  cat(file = stderr(), "Function build_design_table_bg", "\n")
+  
+  #get design data
+  conn <- RSQLite::dbConnect(RSQLite::SQLite(), database_path)
+  design <- RSQLite::dbReadTable(conn, "design", design)
+  RSQLite::dbDisconnect(conn)
+
+  design <- design[, c("ID", "Replicate", "Label", "Group")] |> dplyr::mutate_all(as.character)
+  colnames(design) <- c("ID", "Replicate", "Label", "Group")
+  
+  design_DT <- rhandsontable::rhandsontable(design, readOnly = TRUE, rowHeaders = NULL, digits = 0) |> 
+    rhandsontable::hot_col(col = 'ID', halign = 'htCenter') |>
+    rhandsontable::hot_col(col = 'Replicate', halign = 'htCenter') |>
+    rhandsontable::hot_col(col = 'Label', halign = 'htCenter') |>
+    rhandsontable::hot_col(col = 'Group', halign = 'htCenter')
+  
+  cat(file = stderr(), "Function create_stats_design_table_bg...end", "\n")
+  return(design_DT)   
+}
+
+
 
 #--------------------------------------------------------------------------
 #load design table

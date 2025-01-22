@@ -40,7 +40,12 @@ shinyServer(function(session, input, output) {
     if ("data_start" %in% list_tables(params)) {
       create_data_table(session, input, output, params, "data_start")
     }
-
+    
+    if ("QC_Report" %in% list_tables(params)) {
+      create_qc_table(session, input, output, params)
+    }
+    
+    update_widgets(session, input, output, params)
 
   }else {
     #fresh start, create default params
@@ -48,7 +53,8 @@ shinyServer(function(session, input, output) {
     create_default_params(volumes, python_path) 
   }
   
-  
+  #button observers
+  observe_buttons(session, input, output)
   
   #------------------------------------------------------------------------------------------------------  
   #Load design file
@@ -83,6 +89,7 @@ shinyServer(function(session, input, output) {
     cat(file = stderr(), "\n\n","sfb_data_file button clicked...", "\n")
     
     if (is.list(input$sfb_data_file)) {
+      showModal(modalDialog("Loading and preprocessing data...", footer = NULL))
       
       #read data files
       load_data_file(session, input, output, params)
@@ -107,6 +114,9 @@ shinyServer(function(session, input, output) {
       
       create_report_table(session, input, output, params)
       
+      update_widgets(session, input, output, params)
+
+      removeModal()
     }
     
   }) 
@@ -124,7 +134,22 @@ shinyServer(function(session, input, output) {
     
   }) 
   
-
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$spqc_qc_calc, {
+    
+    cat(file = stderr(), "\n\n","spqc_qc_calc clicked...", "\n")
+    
+    spqc_calc(session, input, output, params)
+    
+    qc_calc(session, input, output, params)
+    
+    create_report_table(session, input, output, params)
+    
+    create_qc_table(session, input, output, params)
+    
+    cat(file = stderr(), "\n\n","spqc_qc_calc clicked...end", "\n")
+    
+  }) 
 
   
   
