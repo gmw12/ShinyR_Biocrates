@@ -425,6 +425,7 @@ qc_calc_bg <- function(params){
     }
   }
   
+  write_table_try("QC_Report", df_qc_report, params)
   
   cat(file = stderr(), "Function qc_calc_bg...end", "\n")
 }
