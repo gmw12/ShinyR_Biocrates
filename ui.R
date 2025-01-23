@@ -115,7 +115,7 @@ body <- dashboardBody(
                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                           hr(),
                           tags$b("Preprocess/Filter Data"),
-                          checkboxInput("sqpc_filter", label = "SPQC %CV Filter", value = FALSE),
+                          checkboxInput("spqc_filter", label = "SPQC %CV Filter", value = FALSE),
                           numericInput("spqc_filter_value", label = "Max %CV", value = 30, min = 0, max = 100),
                           checkboxInput("missing_filter", label = "Max% <LOD values", value = FALSE),
                           numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),

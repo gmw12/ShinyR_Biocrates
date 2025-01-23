@@ -75,11 +75,11 @@ create_data_table_bg <- function(params, table_name){
 
 #------------------------------------------------------------------------
 #load design table
-create_report_table <- function(session, input, output, params){
+create_report_table <- function(session, input, output, params, table_name){
   cat(file = stderr(), "Function create_report_table", "\n")
   #showModal(modalDialog("Creating design table...", footer = NULL))
   
-  bg_report_table <- callr::r_bg(create_report_table_bg, args = list(params), stderr = str_c(params$error_path, "//error_report_table.txt"), supervise = TRUE)
+  bg_report_table <- callr::r_bg(create_report_table_bg, args = list(params, table_name), stderr = str_c(params$error_path, "//error_report_table.txt"), supervise = TRUE)
   bg_report_table$wait()
   print_stderr("error_report_table.txt")
   
@@ -95,12 +95,12 @@ create_report_table <- function(session, input, output, params){
 
 #--------------------------------
 
-create_report_table_bg <- function(params){
+create_report_table_bg <- function(params, table_name){
   cat(file = stderr(), "Function create_report_table_bg", "\n")
   source("Shiny_File.R")
   
   #get raw_datadata
-  df_report <- read_table_try("Report", params)
+  df_report <- read_table_try(table_name, params)
 
   options <- list(
     selection = 'single',

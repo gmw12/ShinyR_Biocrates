@@ -44,6 +44,10 @@ update_widgets <- function(session, input, output, params) {
   material_types <- as.list(strsplit(params$materials, ",")[[1]])
   updatePickerInput(session, "material_select", choices = material_types)
   
+  if (length(params$material_select) >0){
+    selected_materials <- as.list(strsplit(params$material_select, ",")[[1]])
+    updatePickerInput(session, "material_select", selected = selected_materials)
+  }
   
  cat(file = stderr(), "Function - update_widgets...end", "\n")
 }

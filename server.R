@@ -35,7 +35,14 @@ shinyServer(function(session, input, output) {
     cat(file = stderr(), "params file exists...", "\n\n")
     ui_render_load_data(session, input, output)
     ui_render_process_data(session, input, output, params)
-    create_report_table(session, input, output, params)
+    
+    
+    if ("Report" %in% list_tables(params)) {
+      create_report_table(session, input, output, params, "Report")
+    }else {
+      create_report_table(session, input, output, params, "Report_template")
+    }
+    
     
     if ("data_start" %in% list_tables(params)) {
       create_data_table(session, input, output, params, "data_start")
@@ -112,7 +119,7 @@ shinyServer(function(session, input, output) {
       
       report_template(session, input, output, params)
       
-      create_report_table(session, input, output, params)
+      create_report_table(session, input, output, params, "Report_template")
       
       update_widgets(session, input, output, params)
 
@@ -143,7 +150,7 @@ shinyServer(function(session, input, output) {
     
     qc_calc(session, input, output, params)
     
-    create_report_table(session, input, output, params)
+    create_report_table(session, input, output, params, "Report")
     
     create_qc_table(session, input, output, params)
     
@@ -162,7 +169,16 @@ shinyServer(function(session, input, output) {
     
   }) 
   
-  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$filter_calc, {
+    
+    cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
+    
+    spqc_missing_filter(session, input, output, params)
+    
+    cat(file = stderr(), "\n\n","material_calc clicked...end", "\n")
+    
+  }) 
   
   
   removeModal()     
