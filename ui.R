@@ -9,6 +9,7 @@ sidebar <- dashboardSidebar(width = 165,
                               menuItem("Welcome", tabName = "welcome", selected = TRUE),
                               menuItem("Load", tabName = "load", selected = FALSE),
                               menuItem("Process", tabName = "process", selected = FALSE),
+                              menuItem("Explore", tabName = "explore", selected = FALSE),
                               menuItem("Admin", tabName = "admin", selected = FALSE)
                             )
 )
@@ -133,7 +134,7 @@ body <- dashboardBody(
                         tabPanel("Report",
                            column(width =12, offset =0,
                               hr(),
-                              tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
+                              tags$head(tags$style("#report_table{color: blue; font-size: 12px;}")),
                               DT::dataTableOutput("report_table", width ='100%')
                            )
                           ),
@@ -141,7 +142,7 @@ body <- dashboardBody(
                         tabPanel("Data",
                           column(width =12, offset =0,
                               hr(),
-                              tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
+                              tags$head(tags$style("#data_table{color: blue; font-size: 12px;}")),
                               DT::dataTableOutput("data_table", width ='100%')
                             )
                           ),
@@ -149,7 +150,7 @@ body <- dashboardBody(
                         tabPanel("QC",
                                  column(width =12, offset =0,
                                         hr(),
-                                        tags$head(tags$style("#data_processed{color: blue; font-size: 12px;}")),
+                                        tags$head(tags$style("#qc_table{color: blue; font-size: 12px;}")),
                                         DT::dataTableOutput("qc_table", width ='100%')
                                  )
                         )
@@ -162,6 +163,70 @@ body <- dashboardBody(
     ),
     
 
+    #Parameters
+    tabItem(tabName = "explore",
+            fluidRow(
+              column(width = 2,
+                     fluidRow(
+                       box(id = "explore_params", title = "Explore Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
+                           selectInput("material_explore", label = h3("Select Material"), choices = c("1", "2", "3"), width = 150),
+                           radioButtons("data_type", label = h3("Data Type"),
+                                        choices = list("Unfiltered" = 1, "Filtered" = 2), 
+                                        selected = 1),
+                           actionButton("explore_start", label = "Explore Data", width = 150,
+                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
+                           
+                       )
+                       
+                     )),
+              
+              column(width = 10,  
+                     fluidRow(
+                       tabBox(id="explore_data", width = 12, height = 750,
+                              
+                              tabPanel("Data",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              tags$head(tags$style("#explore_table{color: blue; font-size: 12px;}")),
+                                              DT::dataTableOutput("explore_table", width ='100%')
+                                       )
+                              ),
+                              
+                              tabPanel("Plots",
+                                       column(width =6, offset =0,
+                                              dropdownButton(
+                                                selectInput("stats_pca2d_x", label = "pca xaxis", choices = list("PC1", "PC2", "PC3", "PC4", "PC5"), 
+                                                            selected = "PC1"),
+                                                selectInput("stats_pca2d_y", label = "pca yaxis", choices = list("PC1", "PC2", "PC3", "PC4", "PC5"), 
+                                                            selected = "PC2"),
+                                                textInput("stats_pca2d_title", label="plot title", value = "pca2d", width = 200),
+                                                sliderInput("stats_pca2d_label_size", label = h5("Label Size"), min = 1, 
+                                                            max = 50, value = 11),
+                                                sliderInput("stats_pca2d_title_size", label = h5("Title Size"), min = 10, 
+                                                            max = 50, value = 20),
+                                                sliderInput("stats_pca2d_dot_size", label = h5("Point Size"), min = 1, 
+                                                            max = 20, value = 4),
+                                                circle = TRUE, status = "danger", icon = icon("cogs"), width = "300px", size = "sm",
+                                                tooltip = tooltipOptions(title = "Click to see inputs !")
+                                              ),
+                                              div(
+                                                style = "position:relative",
+                                                plotOutput("stats_pca2d", width = 600, height = 400,
+                                                           hover = hoverOpts("plot_pca2d_hover", delay = 100, delayType = "debounce")),
+                                                uiOutput("hover_pca2d_info")
+                                              ),
+                                              downloadButton('download_stats_pca2d')
+                                       )  
+                                       )
+                              
+                              )
+                       )
+                     )
+            )
+    ),
+    
+    
+    
     tabItem(tabName = "admin",
             fluidRow(
               column(width = 12, align = "center",

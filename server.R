@@ -181,5 +181,21 @@ shinyServer(function(session, input, output) {
   }) 
   
   
+  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$explore_start, {
+    
+    cat(file = stderr(), "\n\n","explore_start clicked...", "\n")
+    
+    create_explore_table(session, input, output, params)
+    
+    explore_start(session, input, output, params)
+    
+    interactive_pca2d(session, input, output)
+    
+    cat(file = stderr(), "\n\n","explore_start clicked...end", "\n")
+    
+  }) 
+  
   removeModal()     
 })

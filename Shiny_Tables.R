@@ -196,6 +196,85 @@ create_qc_table_bg <- function(params){
 }
 
 
+#------------------------------------------------------------------------
+#load design table
+create_explore_table <- function(session, input, output, params){
+  cat(file = stderr(), "Function explore_table", "\n")
+  #showModal(modalDialog("Creating design table...", footer = NULL))
+  
+  input_material_explore <- input$material_explore
+  input_data_type <- input$data_type
+  
+  bg_explore_table <- callr::r_bg(create_explore_table_bg, 
+                                  args = list(params, input_material_explore, input_data_type),
+                                  stderr = str_c(params$error_path, "//error_explore_table.txt"), supervise = TRUE)
+  bg_explore_table$wait()
+  print_stderr("error_explore_table.txt")
+  
+  df <- bg_explore_table$get_result()[[1]]
+  options <- bg_explore_table$get_result()[[2]]
+  
+  explore_table_DT <-  DT::datatable(df, rownames = FALSE, extensions = "FixedColumns", options = options)
+  output$explore_table <- DT::renderDataTable(explore_table_DT)
+  
+  cat(file = stderr(), "Function create_explore_table...end", "\n\n")
+  #removeModal()
+}
+
+#--------------------------------
+
+create_explore_table_bg <- function(params, input_material_explore, input_data_type){
+  cat(file = stderr(), "Function create_explore_table_bg", "\n")
+  source("Shiny_File.R")
+  
+  if (input_data_type == 1) {
+    table_name <- input_material_explore
+  } else {
+    table_name <- stringr::str_c("filtered_", input_material_explore)
+  }
+  
+  df <- read_table_try(table_name, params)
+  
+  
+  options <- list(
+    fixedColumns = list(leftColumns = 1),
+    autoWidth = TRUE,
+    scrollX = TRUE,
+    scrollY = 500,
+    scrollCollapse = TRUE,
+    columnDefs = list(
+      list(
+        targets = c(1),
+        visibile = TRUE,
+        "width" = '5',
+        className = 'dt-center'
+      ),
+      list(
+        targets = c(2),
+        visible = TRUE,
+        "width" = '50',
+        className = 'dt-center'
+      )
+    ),
+    ordering = TRUE,
+    orderClasses = TRUE,
+    pageLength = 20,
+    lengthMenu = c(20, 50, 100)
+  )
+  
+  cat(file = stderr(), "Function create_explore_table_bg...end", "\n")
+  
+  return(list(df, options))   
+}
+
+
+
+
+
+
+
+
+
 
 
 

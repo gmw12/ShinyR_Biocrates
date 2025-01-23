@@ -545,9 +545,45 @@ spqc_missing_filter_bg <- function(params, input_spqc_filter, input_spqc_filter_
   cat(file = stderr(), "Function spqc_missing_filter_bg...end", "\n")
 }
 
+#---------------------------------------------------------------------
 
+explore_start <- function(session, input, output, params){
+  cat(file = stderr(), "Function explore_start...", "\n")
+  
+  input_material_explore <- input$material_explore
+  input_data_type <- input$data_type
 
+  bg_explore_start <- callr::r_bg(explore_start_bg, 
+                                        args = list(params, input_material_explore, input_data_type), 
+                                        stderr = str_c(params$error_path, "//error_explore_start.txt"), supervise = TRUE)
+  bg_explore_start$wait()
+  print_stderr("error_explore_start.txt")
+  
+  interactive_pca2d <- function(session, input, output)
+  
+  cat(file = stderr(), "Function explore_start...end", "\n")
+}
 
+#---------------------------------------------------------------------
+
+explore_start_bg <- function(params, input_material_explore, input_data_type){
+  cat(file = stderr(), "Function explore_start_bg...", "\n")
+  source('Shiny_File.R')
+  
+  if (input_data_type == 1) {
+    table_name <- input_material_explore
+  } else {
+    table_name <- stringr::str_c("filtered_", input_material_explore)
+  }
+  
+  df <- read_table_try(table_name, params)
+  
+  
+  
+  
+  
+  cat(file = stderr(), "Function explore_start_bg...end", "\n")
+}
 
 
 
