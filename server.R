@@ -191,7 +191,7 @@ shinyServer(function(session, input, output) {
     
     explore_start(session, input, output, params)
     
-    interactive_pca2d(session, input, output)
+    interactive_pca2d(session, input, output, params)
     
     cat(file = stderr(), "\n\n","explore_start clicked...end", "\n")
     

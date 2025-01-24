@@ -2,10 +2,16 @@ cat(file = stderr(), "Shiny_PCA.R", "\n")
 
 #------------------------------------------------------------------------------------------------------------------------
 
-interactive_pca2d <- function(session, input, output)
+interactive_pca2d <- function(session, input, output, params)
 {
   
- df <- read_table_try("plasma", params)
+  if(input$data_type == 1){
+    table_name <- input$material_explore
+  }else{
+    table_name <- stringr::str_c("filtered_", input$material_explore)  
+  }
+  
+  df <- read_table_try(table_name, params)
  df_report <- read_table_try("Report", params)
  
  updateTextInput(session, "stats_pca2d_title", value = "Plasma PCA 2D")
@@ -16,7 +22,7 @@ interactive_pca2d <- function(session, input, output)
  df$Sample.description[grep("XXXX", df$Sample.description)] <- "Sample"
  #df$Sample.description <- stringr::str_c(df$Sample.description, "_", df$Submission.name)    
 
- df_data <- df |> dplyr::select(df_report$R_colnames)
+ df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
  
  df_data <- as.data.frame(sapply(df_data, as.numeric))
  df_plot <- cbind(df$Sample.description, df_data)

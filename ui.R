@@ -205,13 +205,13 @@ body <- dashboardBody(
                                                 sliderInput("stats_pca2d_title_size", label = h5("Title Size"), min = 10, 
                                                             max = 50, value = 20),
                                                 sliderInput("stats_pca2d_dot_size", label = h5("Point Size"), min = 1, 
-                                                            max = 20, value = 4),
+                                                            max = 10, value = 2),
                                                 circle = TRUE, status = "danger", icon = icon("cogs"), width = "300px", size = "sm",
                                                 tooltip = tooltipOptions(title = "Click to see inputs !")
                                               ),
                                               div(
                                                 style = "position:relative",
-                                                plotOutput("stats_pca2d", width = 600, height = 400,
+                                                plotOutput("stats_pca2d", width = 800, height = 600,
                                                            hover = hoverOpts("plot_pca2d_hover", delay = 100, delayType = "debounce")),
                                                 uiOutput("hover_pca2d_info")
                                               ),
