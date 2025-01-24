@@ -35,7 +35,20 @@ ui_render_process_data <- function(session, input, output, params) {
   cat(file = stderr(), "Function ui_render_process_data... end", "\n")
 }
 
-
+#-------------------------------------------------------------------------------------------
+ui_render_qc_plots <- function(session, input, output) {
+  cat(file = stderr(), "function ui_render_qc_plots...", "\n")
+  
+  output$qc_bar <- renderImage({
+    list(src = str_c(params$plot_path,"QC_barplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
+  }, deleteFile = FALSE)
+  
+  output$qc_box <- renderImage({
+    list(src = str_c(params$plot_path,"QC_boxplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
+  }, deleteFile = FALSE)
+  
+  cat(file = stderr(), "function ui_render_qc_plots...end", "\n")
+}
 
 #-------------------------------------
 update_widgets <- function(session, input, output, params) {

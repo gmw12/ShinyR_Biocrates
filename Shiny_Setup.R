@@ -46,15 +46,16 @@ load_config_file <- function(session, input, output){
   
   #Global set of data and database paths
   params$data_source <<- "unkown"
-  params$data_path <<- str_c(params$config_path, input$file_prefix, "/")
-  database_dir <<- str_c(getwd(), "/database/")
+  params$data_path <<- create_dir(str_c(params$config_path, input$file_prefix, "/"))
+  database_dir <<- create_dir(str_c(getwd(), "/database/"))
   params$database_path <<- str_c(database_dir, input$file_prefix, ".db")
-  params$error_path <<- create_dir(str_c(params$data_path, "Error"))
 
   #create working directory for 
-  create_dir(params$data_path)
-  create_dir(database_dir)
-  create_dir(params$error_path)
+ #create_dir(params$data_path)
+  #create_dir(database_dir)
+  params$error_path <<- create_dir(str_c(params$data_path, "Error"))
+  params$plot_path <<- create_dir(str_c(params$data_path, "Plots"))
+  #create_dir(params$error_path)
   
   cat(file = stderr(), str_c("loading config file from ", params$config_path), "\n")
   

@@ -50,6 +50,7 @@ shinyServer(function(session, input, output) {
     
     if ("QC_Report" %in% list_tables(params)) {
       create_qc_table(session, input, output, params)
+      ui_render_qc_plots(session, input, output)
     }
     
     update_widgets(session, input, output, params)
@@ -153,6 +154,8 @@ shinyServer(function(session, input, output) {
     create_report_table(session, input, output, params, "Report")
     
     create_qc_table(session, input, output, params)
+    
+    create_qc_plots(sesion, input, output, params)
     
     cat(file = stderr(), "\n\n","spqc_qc_calc clicked...end", "\n")
     

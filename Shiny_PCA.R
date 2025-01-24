@@ -1,9 +1,112 @@
 cat(file = stderr(), "Shiny_PCA.R", "\n")
 
+
+#------------------------------------------------------------------------------------------------------
+create_qc_plots <- function(sesion, input, output, params){
+  cat(file = stderr(), "Function create_qc_plots", "\n")
+  showModal(modalDialog("Creating Plots...", footer = NULL))
+  
+  bg_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("QC", "QC_Report", params), stderr = str_c(params$error_path,  "//error_qcbarplot.txt"), supervise = TRUE)
+  bg_box <- callr::r_bg(func = box_plot_bg, args = list("QC", "QC_Report", params), stderr = str_c(params$error_path, "//error_qcboxplot.txt"), supervise = TRUE)
+  bg_box$wait()
+  bg_bar$wait()
+  print_stderr("error_qcbarplot.txt")
+  print_stderr("error_qcboxplot.txt")
+  
+  wait_cycle <- 0
+  while (!file.exists(str_c(params$plot_path,"qc_barplot.png"))) {
+    if (wait_cycle < 10) {
+      Sys.sleep(0.5)
+      wait_cycle <- wait_cycle + 1
+    }
+  }
+  
+  ui_render_qc_plots(session, input, output)
+  
+  cat(file = stderr(), "create_qc_plots...end", "\n")
+  removeModal()
+}
+
+#------------------
+qc_grouped_plot_bg <- function(plot_title, table_name, params) {
+  cat(file = stderr(), stringr::str_c("function qc_grouped_plot_bg...."), "\n")
+  source('Shiny_File.R')
+    
+  df <- read_table_try(table_name, params)
+  test <- df |> dplyr::select(contains("Accuracy")) 
+  test[test < 70 | test > 130] <- 0
+  test[test > 0] <- 1
+  
+  good <- colSums(test)
+  bad <- nrow(test) - good
+  
+  data_plot = data.frame(matrix(vector(), ncol(test)*2, 3,
+                         dimnames=list(c(), c("Sample", "QC", "Count"))),
+                  stringsAsFactors=F)
+  colnames(test) <- gsub("Accuracy", "", colnames(test))
+  data_plot$Sample <- c(colnames(test), colnames(test))
+  data_plot$Count <- c(good, bad)
+  data_plot$QC <- c(rep("70-130", ncol(test)), rep("<70 >130", ncol(test)))
+  
+  
+  file_name <- stringr::str_c(params$plot_path, plot_title, "_barplot.png")
+  plot_title <- stringr::str_c(plot_title, " Barplot")
+  
+  # Grouped
+  ggplot2::ggplot(data_plot, ggplot2::aes(fill = QC, y = Count, x = Sample)) + 
+    ggplot2::geom_bar(position = "dodge", stat = "identity") +
+    ggplot2::ggtitle(plot_title) + 
+    ggplot2::xlab(NULL) +
+    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5), 
+                   axis.text.x = ggplot2::element_text(size = 5, angle = 45, hjust = 1, color = "black"),
+                   axis.text.y = ggplot2::element_text(size = 5,  color = "black"))
+  ggplot2::ggsave(file_name, width = 8, height = 6)
+  
+  cat(file = stderr(), stringr::str_c("function qc_grouped_plot_bg....end"), "\n")
+}
+
+
+#Box plot-------------------------------------------------
+box_plot_bg <- function(plot_title, table_name, params) {
+  cat(file = stderr(), "Function box_plot_bg", "\n")
+  
+  source("Shiny_File.R")
+  
+  df <- read_table_try(table_name, params)
+  df_acc <- df |> dplyr::select(contains("Accuracy"))
+  #remove "Accuracy" from column names
+  colnames(df_acc) <- gsub("Accuracy", "", colnames(df_acc))
+  
+  df_acc <- df_acc |>  dplyr::mutate(across(!where(is.numeric), as.numeric))
+  data_box <- df_acc
+  #reverse column order in data_box
+  data_box <- data_box[,ncol(data_box):1]
+  
+  file_name <- stringr::str_c(params$plot_path, plot_title, "_boxplot.png")
+  plot_title <- stringr::str_c(plot_title, " Boxplot")
+  
+  
+  #create color_list length of ncol df_acc
+  color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow")
+  
+  png(filename = file_name, width = 800, height = 600)
+  graphics::boxplot(data_box, 
+                    col = color_list, 
+                    notch = TRUE, 
+                    boxwex = 0.8,
+                    #ylab = design$Label,
+                    main = c(plot_title),
+                    axes = TRUE,
+                    horizontal = TRUE,
+                    las = 1,
+                    graphics::par(mar = c(2,10,4,1))) #bottom, left, top, right
+  dev.off()
+  cat(file = stderr(), "Function box_plot_bg...end", "\n")
+}
 #------------------------------------------------------------------------------------------------------------------------
 
-interactive_pca2d <- function(session, input, output, params)
-{
+interactive_pca2d <- function(session, input, output, params) {
+  cat(file = stderr(), "interactive_pca2d..." , "\n")
   
   if(input$data_type == 1){
     table_name <- input$material_explore
@@ -11,10 +114,10 @@ interactive_pca2d <- function(session, input, output, params)
     table_name <- stringr::str_c("filtered_", input$material_explore)  
   }
   
-  df <- read_table_try(table_name, params)
+ df <- read_table_try(table_name, params)
  df_report <- read_table_try("Report", params)
  
- updateTextInput(session, "stats_pca2d_title", value = "Plasma PCA 2D")
+ updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(input$material_explore, " PCA2D"))
  
  df$Sample.description[grep("SPQC", df$Sample.description)] <- "SPQC"
  df$Sample.description[grep("NIST", df$Sample.description)] <- "NIST"
@@ -27,8 +130,9 @@ interactive_pca2d <- function(session, input, output, params)
  df_data <- as.data.frame(sapply(df_data, as.numeric))
  df_plot <- cbind(df$Sample.description, df_data)
  
- namex <- df$Sample.bar.code
- color_list <- c("red", "blue", "green", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow")
+ namex <- stringr::str_c(df$Sample.bar.code, "_", df$Sample.description, "_", df$Submission.name)
+ 
+ color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow")
  color_list <- color_list[1:length(unique(df$Sample.description))]
  
  x_pca <- prcomp(df_plot[,-1], scale=TRUE)
@@ -53,7 +157,7 @@ interactive_pca2d <- function(session, input, output, params)
   
   create_stats_pca2d <- reactive({
     ggplot(df_out, aes(x=get(input$stats_pca2d_x), y=get(input$stats_pca2d_y), color=x_gr )) +
-      geom_point(alpha=0.8, size=input$stats_pca2d_dot_size) +
+      geom_point(alpha=0.5, size=input$stats_pca2d_dot_size) +
       theme(legend.title=element_blank()) +
       ggtitle(input$stats_pca2d_title) + 
       ylab(input$stats_pca2d_y) +
@@ -111,4 +215,6 @@ interactive_pca2d <- function(session, input, output, params)
     )
   })
   
+  
+  cat(file = stderr(), "interactive_pca2d...end" , "\n")
 }

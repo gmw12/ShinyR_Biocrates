@@ -131,7 +131,7 @@ body <- dashboardBody(
                      fluidRow(
                        tabBox(id="process_data", width = 12, height = 750,
                         
-                        tabPanel("Report",
+                        tabPanel("Summary",
                            column(width =12, offset =0,
                               hr(),
                               tags$head(tags$style("#report_table{color: blue; font-size: 12px;}")),
@@ -139,7 +139,7 @@ body <- dashboardBody(
                            )
                           ),
                               
-                        tabPanel("Data",
+                        tabPanel("Sample Data",
                           column(width =12, offset =0,
                               hr(),
                               tags$head(tags$style("#data_table{color: blue; font-size: 12px;}")),
@@ -147,11 +147,25 @@ body <- dashboardBody(
                             )
                           ),
                         
-                        tabPanel("QC",
+                        tabPanel("QC Data",
                                  column(width =12, offset =0,
                                         hr(),
                                         tags$head(tags$style("#qc_table{color: blue; font-size: 12px;}")),
                                         DT::dataTableOutput("qc_table", width ='100%')
+                                 )
+                        ),
+                        
+                        tabPanel("QC Barplot",
+                                 column(width =12, offset =0,
+                                        hr(),
+                                        imageOutput("qc_bar")
+                                 )
+                        ),
+                        
+                        tabPanel("QC Boxplot",
+                                 column(width =12, offset =0,
+                                        hr(),
+                                        imageOutput("qc_box")
                                  )
                         )
                         
@@ -192,7 +206,7 @@ body <- dashboardBody(
                                        )
                               ),
                               
-                              tabPanel("Plots",
+                              tabPanel("PCA",
                                        column(width =6, offset =0,
                                               dropdownButton(
                                                 selectInput("stats_pca2d_x", label = "pca xaxis", choices = list("PC1", "PC2", "PC3", "PC4", "PC5"), 
