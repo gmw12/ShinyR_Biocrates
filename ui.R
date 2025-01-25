@@ -8,7 +8,8 @@ sidebar <- dashboardSidebar(width = 165,
                             sidebarMenu(
                               menuItem("Welcome", tabName = "welcome", selected = TRUE),
                               menuItem("Load", tabName = "load", selected = FALSE),
-                              menuItem("Process", tabName = "process", selected = FALSE),
+                              menuItem("QC", tabName = "qc", selected = FALSE),
+                              menuItem("Samples", tabName = "samples", selected = FALSE),
                               menuItem("Explore", tabName = "explore", selected = FALSE),
                               menuItem("Admin", tabName = "admin", selected = FALSE)
                             )
@@ -95,32 +96,24 @@ body <- dashboardBody(
 
 
     #Parameters
-    tabItem(tabName = "process",
+    tabItem(tabName = "qc",
             fluidRow(
               column(width = 2,
                      fluidRow(
-                       box(id = "param_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
-                          tags$b("Impute Missing Values, <LOD"),
+                       box(id = "qc_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
+                          br(),
+                          br(),
+                          tags$h5("<LOD Imputation"),
                           checkboxInput("fixed_lod", label = "Use Fixed LOD", value = FALSE),
                           actionButton("replace_lod", label = "Impute LOD", width = 150,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                          br(),
                           hr(),
                           tags$b("Process SPQC and QC data"),
+                          br(),
+                          numericInput("qc_acc", label = "QC %Accuracy Limit", value = 30, min = 0, max = 100),
+                          br(),
                           actionButton("spqc_qc_calc", label = "SPQC/QC Calc", width = 150,
-                                       style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                          hr(),
-                          pickerInput(inputId = "material_select", label = "Select Materials for Data Output",  choices = c("1", "2", "3"), 
-                                      selected = "1", options = list(`actions-box` = TRUE, size = 100,
-                                                                       `selected-text-format` = "count > 5"),  multiple = TRUE),
-                          actionButton("material_calc", label = "Material Calc", width = 150,
-                                       style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                          hr(),
-                          tags$b("Preprocess/Filter Data"),
-                          checkboxInput("spqc_filter", label = "SPQC %CV Filter", value = FALSE),
-                          numericInput("spqc_filter_value", label = "Max %CV", value = 30, min = 0, max = 100),
-                          checkboxInput("missing_filter", label = "Max% <LOD values", value = FALSE),
-                          numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
-                          actionButton("filter_calc", label = "Preprocess Data", width = 150,
                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                           
                        )
@@ -137,14 +130,6 @@ body <- dashboardBody(
                               tags$head(tags$style("#report_table{color: blue; font-size: 12px;}")),
                               DT::dataTableOutput("report_table", width ='100%')
                            )
-                          ),
-                              
-                        tabPanel("Sample Data",
-                          column(width =12, offset =0,
-                              hr(),
-                              tags$head(tags$style("#data_table{color: blue; font-size: 12px;}")),
-                              DT::dataTableOutput("data_table", width ='100%')
-                            )
                           ),
                         
                         tabPanel("QC Data",
@@ -167,6 +152,20 @@ body <- dashboardBody(
                                         hr(),
                                         imageOutput("qc_box")
                                  )
+                        ),
+                        
+                        tabPanel("SPQC Barplot",
+                                 column(width =12, offset =0,
+                                        hr(),
+                                        imageOutput("spqc_bar")
+                                 )
+                        ),
+                        
+                        tabPanel("SPQC Boxplot",
+                                 column(width =12, offset =0,
+                                        hr(),
+                                        imageOutput("spqc_box")
+                                 )
                         )
                         
 
@@ -176,7 +175,49 @@ body <- dashboardBody(
     )
     ),
     
-
+    #Parameters
+    tabItem(tabName = "samples",
+            fluidRow(
+              column(width = 2,
+                     fluidRow(
+                       box(id = "sample_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
+                           pickerInput(inputId = "material_select", label = "Select Materials for Data Output",  choices = c("1", "2", "3"), 
+                                       selected = "1", options = list(`actions-box` = TRUE, size = 100,
+                                                                      `selected-text-format` = "count > 5"),  multiple = TRUE),
+                           actionButton("material_calc", label = "Material Calc", width = 150,
+                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                           hr(),
+                           tags$b("Preprocess/Filter Data"),
+                           checkboxInput("spqc_filter", label = "SPQC %CV Filter", value = FALSE),
+                           numericInput("spqc_filter_value", label = "Max %CV", value = 30, min = 0, max = 100),
+                           checkboxInput("missing_filter", label = "Max% <LOD values", value = FALSE),
+                           numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
+                           actionButton("filter_calc", label = "Preprocess Data", width = 150,
+                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
+                           
+                       )
+                       
+                     )),
+              
+              column(width = 10,  
+                     fluidRow(
+                       tabBox(id="process_data", width = 12, height = 750,
+                            
+                              tabPanel("Sample Data",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              tags$head(tags$style("#data_table{color: blue; font-size: 12px;}")),
+                                              DT::dataTableOutput("data_table", width ='100%')
+                                       )
+                              )
+                              
+                              
+                       )
+                     )
+              )
+            )
+    ),
+    
     #Parameters
     tabItem(tabName = "explore",
             fluidRow(

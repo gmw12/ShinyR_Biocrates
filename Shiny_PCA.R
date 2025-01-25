@@ -6,15 +6,26 @@ create_qc_plots <- function(sesion, input, output, params){
   cat(file = stderr(), "Function create_qc_plots", "\n")
   showModal(modalDialog("Creating Plots...", footer = NULL))
   
-  bg_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("QC", "QC_Report", params), stderr = str_c(params$error_path,  "//error_qcbarplot.txt"), supervise = TRUE)
-  bg_box <- callr::r_bg(func = box_plot_bg, args = list("QC", "QC_Report", params), stderr = str_c(params$error_path, "//error_qcboxplot.txt"), supervise = TRUE)
-  bg_box$wait()
-  bg_bar$wait()
+  input_qc_acc <- input$qc_acc
+  
+  bg_qc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("QC", "QC_Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_qcbarplot.txt"), supervise = TRUE)
+  bg_qc_box <- callr::r_bg(func = box_plot_bg, args = list("QC", "QC_Report", params), stderr = str_c(params$error_path, "//error_qcboxplot.txt"), supervise = TRUE)
+  
+  bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", "QC_Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
+  bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", "QC_Report", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
+  
+  bg_qc_box$wait()
+  bg_qc_bar$wait()
+  bg_spqc_box$wait()
+  bg_spqc_bar$wait()
+  
   print_stderr("error_qcbarplot.txt")
   print_stderr("error_qcboxplot.txt")
+  print_stderr("error_spqcbarplot.txt")
+  print_stderr("error_spqcboxplot.txt")
   
   wait_cycle <- 0
-  while (!file.exists(str_c(params$plot_path,"qc_barplot.png"))) {
+  while (!file.exists(str_c(params$plot_path,"SPQC_barplot.png"))) {
     if (wait_cycle < 10) {
       Sys.sleep(0.5)
       wait_cycle <- wait_cycle + 1
@@ -28,13 +39,19 @@ create_qc_plots <- function(sesion, input, output, params){
 }
 
 #------------------
-qc_grouped_plot_bg <- function(plot_title, table_name, params) {
+qc_grouped_plot_bg <- function(plot_title, table_name, input_qc_acc, params) {
   cat(file = stderr(), stringr::str_c("function qc_grouped_plot_bg...."), "\n")
   source('Shiny_File.R')
     
+  lower_limit <- 100 - input_qc_acc
+  upper_limit <- 100 + input_qc_acc
+  lower_limit_text <- stringr::str_c("Accuracy < ", lower_limit)
+  upper_limit_text <- stringr::str_c("Accuracy > ", lower_limit)
+  
+  
   df <- read_table_try(table_name, params)
   test <- df |> dplyr::select(contains("Accuracy")) 
-  test[test < 70 | test > 130] <- 0
+  test[test < lower_limit | test > upper_limit] <- 0
   test[test > 0] <- 1
   
   good <- colSums(test)
@@ -46,7 +63,7 @@ qc_grouped_plot_bg <- function(plot_title, table_name, params) {
   colnames(test) <- gsub("Accuracy", "", colnames(test))
   data_plot$Sample <- c(colnames(test), colnames(test))
   data_plot$Count <- c(good, bad)
-  data_plot$QC <- c(rep("70-130", ncol(test)), rep("<70 >130", ncol(test)))
+  data_plot$QC <- c(rep(lower_limit_text, ncol(test)), rep(upper_limit_text, ncol(test)))
   
   
   file_name <- stringr::str_c(params$plot_path, plot_title, "_barplot.png")

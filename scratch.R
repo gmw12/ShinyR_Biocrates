@@ -56,9 +56,19 @@ list_tables(params)
 df_params <- read_table('params', params)
 df_analytes <- read_table('Analytes', params)
 df_qc <- read_table('QC', params)
+df_qc_report <- read_table('QC_Report', params)
+df_report <- read_table('Report', params)
 df_data_raw <- read_table('data_raw', params)
 df_data_status <- read_table('data_status', params)
 df_info <- read_table('data_info', params)
 df_data_start <- read_table('data_start', params)
 df_no_ind <- read_table_try("data_no_indicators", params)
 df_plasma <- read_table('plasma', params)
+
+
+
+#-------------------------------------------------------------------------------------------
+#subset df_plasma where Sample.description contains SPQC
+df_report <- read_table('QC_Report', params)
+df_plasma_spqc <- df_plasma[grep("SPQC", df_plasma$Sample.description),]
+
