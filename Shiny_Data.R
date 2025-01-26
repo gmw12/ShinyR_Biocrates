@@ -438,11 +438,11 @@ material_calc <- function(session, input, output, params){
   params$material_select <- input$material_select
   
   #check if params$material_list exists
-  if (!exists("params$material_list")) {
-    params$material_list <- c()
+  if (length(params$material_list) == 0) {
+    params$material_list <- c(input$material_select)
+  }else{
+    params$material_list <- stringr::str_c(params$material_list, ",", input$material_select)
   }
-
-  params$material_list <- stringr::str_c(params$material_list, input$material_select, ",")
   
   bg_material_calc <- callr::r_bg(material_calc_bg, args = list(params), stderr = str_c(params$error_path, "//error_material_calc.txt"), supervise = TRUE)
   bg_material_calc$wait()
@@ -591,6 +591,85 @@ explore_start_bg <- function(params, input_material_explore, input_data_type){
 
 
 
+#----------------------------------------------------------------------------------------
+# create final excel documents
+Final_Excel <- function(session, input, output, params) {
+  cat(file = stderr(), "function Final_Excel...", "\n")
+  showModal(modalDialog("Creating/Saving excel file...", footer = NULL))  
+  
+  require(openxlsx)
+  
+  file_dir <- stringr::str_c(params$data_path, input$stats_norm_type) 
+  filename <- stringr::str_c(params$data_path, input$stats_norm_type, "//", input$final_stats_name)
+  filename_params <- stringr::str_c(params$data_path, input$stats_norm_type, "//", params$file_prefix, "_Parameters.xlsx")
+  
+  if (!fs::is_dir(file_dir)) {
+    cat(file = stderr(), str_c("create_dir...", file_dir), "\n")
+    dir_create(file_dir)
+  }
+  
+  bg_excel <- callr::r_bg(func = stats_Final_Excel_bg, args = list(file_dir, filename, filename_params, params), stderr = stringr::str_c(params$error_path, "//error_finalexcel.txt"), supervise = TRUE)
+  bg_excel$wait()
+  print_stderr("error_finalexcel.txt")
+  
+  cat(file = stderr(), "function Final_Excel...end", "\n")
+  removeModal()
+}
+
+
+#----------------------------------------------------------------------------------------
+# create final excel documents
+Final_Excel_bg <- function(file_dir, filename, filename_params, params) {
+  cat(file = stderr(), "Function Final_Excel_bg...", "\n")
+  require(openxlsx)
+  
+  conn <- RSQLite::dbConnect(RSQLite::SQLite(), params$database_path)
+  stats_comp <- RSQLite::dbReadTable(conn, "stats_comp")
+  
+  cat(file = stderr(), "Creating Excel Output File...2", "\n")
+  # Excel worksheets for Precursor/Protein
+  if (params$raw_data_format == "precursor" && params$data_output == "Protein") {
+    excel_list <- list('precursor_start', 'raw_peptide', stringr::str_c("precursor_impute_", params$stat_norm), 
+                       stringr::str_c("protein_", params$stat_norm, "_final"))
+    excel_list_name <- list('Raw Precursor Data', 'Raw Peptide Data', 'Imputed Precursor Data', 'Normalized Data')
+  }else if (params$raw_data_format == "protein" && params$data_source == "SP" ) {
+    excel_list <- list('protein_raw', 'protein_impute')
+    excel_list_name <- list('SP Protein Data', "Protein Data")
+  }
+  
+  # add stat comparisons to excel list
+  for (i in 1:nrow(stats_comp))  {
+    excel_list <- c(excel_list, stats_comp$Final_Table_Name[i])
+    excel_list_name <- c(excel_list_name, stats_comp$Name[i])
+  }
+  
+  cat(file = stderr(), "Creating Excel Output File...3", "\n")
+  # build Excel file
+  nextsheet <- 1
+  wb <- createWorkbook()
+  for (i in 1:length(excel_list)) {
+    addWorksheet(wb, excel_list_name[i])
+    table_name <- unlist(excel_list[i])
+    excel_df <- RSQLite::dbReadTable(conn, table_name)
+    writeData(wb, sheet = nextsheet, excel_df)
+    nextsheet <- nextsheet + 1 
+  }  
+  
+  RSQLite::dbDisconnect(conn)
+  
+  cat(file = stderr(), "writting excel to disk...", "\n")
+  saveWorkbook(wb, filename, overwrite = TRUE)
+  cat(file = stderr(), stringr::str_c("Creating Excel Output File...", filename), "\n")
+  
+  #save parameters
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, "Parameters")
+  openxlsx::writeData(wb, sheet=1, params)  
+  openxlsx::saveWorkbook(wb, filename_params, overwrite = TRUE)
+  
+  
+  cat(file = stderr(), "Function Final_Excel_bg...", "\n")
+}
 
 
 

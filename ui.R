@@ -268,6 +268,12 @@ body <- dashboardBody(
                                               br(),
                                               tags$h3("Create Excel Data Return"),
                                               br(),
+                                              
+                                              checkboxInput("excel_raw_data", label = "Raw Data", value = TRUE),
+                                              checkboxInput("excel_report", label = "Sample Info Report", value = TRUE),
+                                              checkboxInput("excel_qc_report", label = "QC Report", value = TRUE),
+                                              checkboxInput("excel_samples", label = "Analyzed Materials", value = TRUE),
+                                              
                                               actionButton("create_excel", label = "Create Excel", width = 150,
                                                            style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
 
