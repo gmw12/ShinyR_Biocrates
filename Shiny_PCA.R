@@ -11,8 +11,8 @@ create_qc_plots <- function(sesion, input, output, params){
   bg_qc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("QC", "QC_Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_qcbarplot.txt"), supervise = TRUE)
   bg_qc_box <- callr::r_bg(func = box_plot_bg, args = list("QC", "QC_Report", params), stderr = str_c(params$error_path, "//error_qcboxplot.txt"), supervise = TRUE)
   
-  bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", "QC_Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
-  bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", "QC_Report", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
+  bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", "Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
+  bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", "Report", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
   
   bg_qc_box$wait()
   bg_qc_bar$wait()
@@ -43,16 +43,27 @@ qc_grouped_plot_bg <- function(plot_title, table_name, input_qc_acc, params) {
   cat(file = stderr(), stringr::str_c("function qc_grouped_plot_bg...."), "\n")
   source('Shiny_File.R')
     
-  lower_limit <- 100 - input_qc_acc
-  upper_limit <- 100 + input_qc_acc
-  lower_limit_text <- stringr::str_c("Accuracy < ", lower_limit)
-  upper_limit_text <- stringr::str_c("Accuracy > ", lower_limit)
-  
-  
   df <- read_table_try(table_name, params)
-  test <- df |> dplyr::select(contains("Accuracy")) 
-  test[test < lower_limit | test > upper_limit] <- 0
-  test[test > 0] <- 1
+  
+  if (plot_title == "QC"){ 
+    test <- df |> dplyr::select(contains("Accuracy")) 
+    lower_limit <- 100 - input_qc_acc
+    upper_limit <- 100 + input_qc_acc
+    test[test < lower_limit | test > upper_limit] <- 0
+    test[test > 0] <- 1
+    lower_limit_text <- stringr::str_c("Accuracy ", lower_limit, "-", upper_limit)
+    upper_limit_text <- stringr::str_c("Accuracy Outside Range")
+  }
+  
+  if (plot_title == "SPQC"){ 
+    test <- df |> dplyr::select(contains("SPQC"))
+    test <- test |> dplyr::select(contains("CV"))
+    test[test > input_qc_acc] <- 0
+    test[test > 0] <- 1
+    lower_limit_text <- stringr::str_c("CV < ", input_qc_acc)
+    upper_limit_text <- stringr::str_c("Accuracy > ", input_qc_acc)
+  }
+  
   
   good <- colSums(test)
   bad <- nrow(test) - good
@@ -90,34 +101,65 @@ box_plot_bg <- function(plot_title, table_name, params) {
   source("Shiny_File.R")
   
   df <- read_table_try(table_name, params)
-  df_acc <- df |> dplyr::select(contains("Accuracy"))
-  #remove "Accuracy" from column names
-  colnames(df_acc) <- gsub("Accuracy", "", colnames(df_acc))
   
-  df_acc <- df_acc |>  dplyr::mutate(across(!where(is.numeric), as.numeric))
-  data_box <- df_acc
-  #reverse column order in data_box
-  data_box <- data_box[,ncol(data_box):1]
+  if (plot_title == "QC"){ 
+    df_box <- df |> dplyr::select(contains("Accuracy"))
+    #remove "Accuracy" from column names
+    colnames(df_box) <- gsub("Accuracy", "", colnames(df_box))
+    df_box_wide <- tidyr::pivot_longer(df_box, cols = colnames(df_box), names_to = "Sample", 
+                                values_to = "Stat")
+    x_name <- "Accuracy"
+    }
   
+  
+  if (plot_title == "SPQC"){ 
+    df_box <- df |> dplyr::select(contains("SPQC"))
+    df_box <- df_box |> dplyr::select(contains("CV"))
+    #colnames(df_box) <- gsub("X", "", colnames(df_box))
+    df_box_wide <- tidyr::pivot_longer(df_box, cols = colnames(df_box), names_to = "Sample", 
+                                values_to = "Stat")
+    x_name <- "CV"
+  }
+  
+  df_box <- df_box |>  dplyr::mutate(across(!where(is.numeric), as.numeric))
+  
+
   file_name <- stringr::str_c(params$plot_path, plot_title, "_boxplot.png")
-  plot_title <- stringr::str_c(plot_title, " Boxplot")
+  plottitle <- stringr::str_c(plot_title, " Boxplot")
   
   
   #create color_list length of ncol df_acc
   color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow")
   
-  png(filename = file_name, width = 800, height = 600)
-  graphics::boxplot(data_box, 
-                    col = color_list, 
-                    notch = TRUE, 
-                    boxwex = 0.8,
-                    #ylab = design$Label,
-                    main = c(plot_title),
-                    axes = TRUE,
-                    horizontal = TRUE,
-                    las = 1,
-                    graphics::par(mar = c(2,10,4,1))) #bottom, left, top, right
-  dev.off()
+  # png(filename = file_name, width = 800, height = 600)
+  # graphics::boxplot(df_box, 
+  #                   col = color_list, 
+  #                   notch = TRUE, 
+  #                   boxwex = 0.8,
+  #                   ylab = colnames(df_box)[1],
+  #                   main = c(plottitle),
+  #                   axes = TRUE,
+  #                   horizontal = TRUE,
+  #                   las = 1,
+  #                   graphics::par(mar = c(2,15,4,1))) #bottom, left, top, right
+  # dev.off()
+  
+
+  
+  ggplot2::ggplot(df_box_wide, ggplot2::aes(x=as.factor(Sample), y=Stat, fill = Sample)) + 
+    ggplot2::geom_boxplot(alpha=0.2) +
+    ggplot2::scale_color_manual(values = rev(unique(color_list))) +
+    ggplot2::theme_classic() +
+    ggplot2::theme(legend.position = "none", 
+          axis.title.y = ggplot2::element_blank(),
+          plot.title = ggplot2::element_text(hjust = 0.5) ) +
+    ggplot2::labs(title = plottitle, x = x_name) +
+    ggplot2::scale_x_discrete(limits = rev) +
+    ggplot2::coord_flip() 
+  ggplot2::ggsave(file_name, width = 8, height = 6)
+  
+  
+  
   cat(file = stderr(), "Function box_plot_bg...end", "\n")
 }
 #------------------------------------------------------------------------------------------------------------------------
@@ -126,15 +168,16 @@ interactive_pca2d <- function(session, input, output, params) {
   cat(file = stderr(), "interactive_pca2d..." , "\n")
   
   if(input$data_type == 1){
-    table_name <- input$material_explore
+    table_name <- input$material_select
   }else{
-    table_name <- stringr::str_c("filtered_", input$material_explore)  
+    table_name <- stringr::str_c("filtered_", input$material_select)  
   }
   
+cat(file = stderr(), str_c("table name = ", table_name), "\n")  
  df <- read_table_try(table_name, params)
  df_report <- read_table_try("Report", params)
  
- updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(input$material_explore, " PCA2D"))
+ updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(input$material_select, " PCA2D"))
  
  df$Sample.description[grep("SPQC", df$Sample.description)] <- "SPQC"
  df$Sample.description[grep("NIST", df$Sample.description)] <- "NIST"

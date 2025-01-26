@@ -3,7 +3,7 @@ cat(file = stderr(), "Shiny_Tables.R", "\n")
 
 
 #load design table
-create_data_table <- function(session, input, output, params, table_name){
+create_data_table <- function(session, input, output, params, table_name, input_table){
   cat(file = stderr(), "Function create_data_table...", "\n")
   require('DT')
   require('shinyjs')
@@ -12,11 +12,20 @@ create_data_table <- function(session, input, output, params, table_name){
   bg_datatable$wait()
   print_stderr("error_datatable.txt")
   
-  df <- bg_datatable$get_result()[[1]]
-  options <- bg_datatable$get_result()[[2]]
+  data_table_DT <- bg_datatable$get_result()
   
-  data_table_DT <-  DT::datatable(df, rownames = FALSE, extensions = "FixedColumns", options = options)
-  output$data_table <- DT::renderDataTable(data_table_DT)
+  if (input_table == "QC"){
+    output$data_table <- DT::renderDataTable(data_table_DT) 
+  }
+
+  if (input_table == "Samples"){
+    output$material_table <- DT::renderDataTable(data_table_DT) 
+  }
+  
+  if (input_table == "Samples_Filtered"){
+    output$filter_material_table <- DT::renderDataTable(data_table_DT) 
+  }
+  
   
   cat(file = stderr(), "Function create_data_table...end", "\n")
 }
@@ -68,9 +77,11 @@ create_data_table_bg <- function(params, table_name){
     lengthMenu = c(10, 50, 100, 200)
   )
   
+  data_table_DT <-  DT::datatable(df, rownames = FALSE, extensions = "FixedColumns", options = options)
+  
   cat(file = stderr(), "Function create_data_table_bg...end", "\n")
   
-  return(list(df, options))   
+  return(data_table_DT)   
 }
 
 #------------------------------------------------------------------------

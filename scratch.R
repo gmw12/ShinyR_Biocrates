@@ -72,3 +72,36 @@ df_plasma <- read_table('plasma', params)
 df_report <- read_table('QC_Report', params)
 df_plasma_spqc <- df_plasma[grep("SPQC", df_plasma$Sample.description),]
 
+
+# Create a sample data frame in wide format
+wide_df <- data.frame(
+  ID = c(1, 2, 3),
+  Name = c("Ali", "Boby", "Charles"),
+  Test1 = c(85, 90, 92),
+  Test2 = c(88, 89, 95),
+  Test3 = c(82, 87, 91)
+)
+print(wide_df)
+
+# Load tidyr package
+library(tidyr)
+# Reshape data from wide to long format
+long_df <- pivot_longer(wide_df, cols = starts_with("Test"), names_to = "Test", 
+                        values_to = "Score")
+print(long_df)
+
+df_box_wide <- pivot_longer(df_box, cols = colnames(df_box), names_to = "Sample", 
+                        values_to = "CV")
+
+df_mtcars <- mtcars
+
+ggplot(mtcars, aes(x=as.factor(cyl), y=mpg)) + 
+  geom_boxplot(fill="slateblue", alpha=0.2) + 
+  xlab("cyl")
+
+ggplot(df_box_wide, aes(x=as.factor(Sample), y=CV, fill = Sample)) + 
+  geom_boxplot(alpha=0.2) +
+  coord_flip() +
+  theme(legend.position = "none", axis.title.y = element_blank()) +
+  labs(title = "Boxplot of CVs", x = "CV")
+  

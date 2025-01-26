@@ -10,7 +10,6 @@ sidebar <- dashboardSidebar(width = 165,
                               menuItem("Load", tabName = "load", selected = FALSE),
                               menuItem("QC", tabName = "qc", selected = FALSE),
                               menuItem("Samples", tabName = "samples", selected = FALSE),
-                              menuItem("Explore", tabName = "explore", selected = FALSE),
                               menuItem("Admin", tabName = "admin", selected = FALSE)
                             )
 )
@@ -124,6 +123,14 @@ body <- dashboardBody(
                      fluidRow(
                        tabBox(id="process_data", width = 12, height = 750,
                         
+                        tabPanel("Sample Data",
+                                 column(width =12, offset =0,
+                                        hr(),
+                              tags$head(tags$style("#data_table{color: blue; font-size: 12px;}")),
+                              DT::dataTableOutput("data_table", width ='100%')
+                           )
+                        ),                              
+                              
                         tabPanel("Summary",
                            column(width =12, offset =0,
                               hr(),
@@ -181,54 +188,17 @@ body <- dashboardBody(
               column(width = 2,
                      fluidRow(
                        box(id = "sample_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
-                           pickerInput(inputId = "material_select", label = "Select Materials for Data Output",  choices = c("1", "2", "3"), 
-                                       selected = "1", options = list(`actions-box` = TRUE, size = 100,
-                                                                      `selected-text-format` = "count > 5"),  multiple = TRUE),
-                           actionButton("material_calc", label = "Material Calc", width = 150,
-                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                           selectInput(inputId = "material_select", label = h3("Select Materials for Data Output"),  choices = c("1", "2", "3"), 
+                                       selected = "1"),
                            hr(),
-                           tags$b("Preprocess/Filter Data"),
+                           tags$h3("Preprocess/Filter Data"),
                            checkboxInput("spqc_filter", label = "SPQC %CV Filter", value = FALSE),
                            numericInput("spqc_filter_value", label = "Max %CV", value = 30, min = 0, max = 100),
                            checkboxInput("missing_filter", label = "Max% <LOD values", value = FALSE),
                            numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
+                           br(),
+                           br(),
                            actionButton("filter_calc", label = "Preprocess Data", width = 150,
-                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
-                           
-                       )
-                       
-                     )),
-              
-              column(width = 10,  
-                     fluidRow(
-                       tabBox(id="process_data", width = 12, height = 750,
-                            
-                              tabPanel("Sample Data",
-                                       column(width =12, offset =0,
-                                              hr(),
-                                              tags$head(tags$style("#data_table{color: blue; font-size: 12px;}")),
-                                              DT::dataTableOutput("data_table", width ='100%')
-                                       )
-                              )
-                              
-                              
-                       )
-                     )
-              )
-            )
-    ),
-    
-    #Parameters
-    tabItem(tabName = "explore",
-            fluidRow(
-              column(width = 2,
-                     fluidRow(
-                       box(id = "explore_params", title = "Explore Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
-                           selectInput("material_explore", label = h3("Select Material"), choices = c("1", "2", "3"), width = 150),
-                           radioButtons("data_type", label = h3("Data Type"),
-                                        choices = list("Unfiltered" = 1, "Filtered" = 2), 
-                                        selected = 1),
-                           actionButton("explore_start", label = "Explore Data", width = 150,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                            
                        )
@@ -242,13 +212,31 @@ body <- dashboardBody(
                               tabPanel("Data",
                                        column(width =12, offset =0,
                                               hr(),
-                                              tags$head(tags$style("#explore_table{color: blue; font-size: 12px;}")),
-                                              DT::dataTableOutput("explore_table", width ='100%')
+                                              tags$head(tags$style("#material_data{color: blue; font-size: 12px;}")),
+                                              DT::dataTableOutput("material_table", width ='100%')
                                        )
                               ),
                               
+                              tabPanel("Filtered Data",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              tags$head(tags$style("#filter_material_data{color: blue; font-size: 12px;}")),
+                                              DT::dataTableOutput("filter_material_table", width ='100%')
+                                       )
+                              ),
+                              
+                              
                               tabPanel("PCA",
-                                       column(width =6, offset =0,
+                                       column(width =3, offset =0,
+                                              radioButtons("data_type", label = h3("Data Type"),
+                                                           choices = list("Unfiltered" = 1, "Filtered" = 2), 
+                                                           selected = 1),
+                                              actionButton("create_pca", label = "Create PCA", width = 150,
+                                                           style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                                              hr(),
+                                              br(),
+                                              br(),
+    
                                               dropdownButton(
                                                 selectInput("stats_pca2d_x", label = "pca xaxis", choices = list("PC1", "PC2", "PC3", "PC4", "PC5"), 
                                                             selected = "PC1"),
@@ -263,25 +251,36 @@ body <- dashboardBody(
                                                             max = 10, value = 2),
                                                 circle = TRUE, status = "danger", icon = icon("cogs"), width = "300px", size = "sm",
                                                 tooltip = tooltipOptions(title = "Click to see inputs !")
-                                              ),
-                                              div(
-                                                style = "position:relative",
-                                                plotOutput("stats_pca2d", width = 800, height = 600,
-                                                           hover = hoverOpts("plot_pca2d_hover", delay = 100, delayType = "debounce")),
-                                                uiOutput("hover_pca2d_info")
-                                              ),
-                                              downloadButton('download_stats_pca2d')
+                                              )),
+                                           column(width =9, offset =0,
+                                                div(
+                                                  style = "position:relative",
+                                                  plotOutput("stats_pca2d", width = 800, height = 600,
+                                                             hover = hoverOpts("plot_pca2d_hover", delay = 100, delayType = "debounce")),
+                                                  uiOutput("hover_pca2d_info")
+                                                ),
+                                                downloadButton('download_stats_pca2d')
                                        )  
-                                       )
+                              ),
                               
-                              )
+                              tabPanel("Excel Output",
+                                       column(width =12, offset =0,
+                                              br(),
+                                              tags$h3("Create Excel Data Return"),
+                                              br(),
+                                              actionButton("create_excel", label = "Create Excel", width = 150,
+                                                           style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
+
+                                       )
+                              ),
+                              
                        )
                      )
+              )
             )
     ),
     
-    
-    
+
     tabItem(tabName = "admin",
             fluidRow(
               column(width = 12, align = "center",

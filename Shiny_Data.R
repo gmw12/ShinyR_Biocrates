@@ -435,29 +435,35 @@ qc_calc_bg <- function(params){
 material_calc <- function(session, input, output, params){
   cat(file = stderr(), "Function material_calc...", "\n")
   
-  input_material_select <- input$material_select
-  params$material_select <<- stringr::str_c(input_material_select, collapse = ",")
+  params$material_select <- input$material_select
   
-  bg_material_calc <- callr::r_bg(material_calc_bg, args = list(params, input_material_select), stderr = str_c(params$error_path, "//error_material_calc.txt"), supervise = TRUE)
+  #check if params$material_list exists
+  if (!exists("params$material_list")) {
+    params$material_list <- c()
+  }
+
+  params$material_list <- stringr::str_c(params$material_list, input$material_select, ",")
+  
+  bg_material_calc <- callr::r_bg(material_calc_bg, args = list(params), stderr = str_c(params$error_path, "//error_material_calc.txt"), supervise = TRUE)
   bg_material_calc$wait()
   print_stderr("error_material_calc.txt")
+  
+  params <<- params
   
   cat(file = stderr(), "Function material_calc...end", "\n")
 }
 
 #---------------------------------------------------------------------
 
-material_calc_bg <- function(params, input_material_select){
+material_calc_bg <- function(params){
   cat(file = stderr(), "Function material_calc_bg...", "\n")
   source('Shiny_File.R')
   
   df <- read_table_try("data_impute", params)
   
-  for (material in input_material_select) {
-    df_material <- df[grep(material, df$Material),]
-    write_table_try(material, df_material, params)
-  }
-  
+  df_material <- df[grep(params$material_select, df$Material),]
+  write_table_try(params$material_select, df_material, params)
+
   
   cat(file = stderr(), "Function material_calc_bg...end", "\n")
 }
@@ -496,51 +502,48 @@ spqc_missing_filter_bg <- function(params, input_spqc_filter, input_spqc_filter_
   high_cv_analytes <- c()
   high_LOD_analytes <- c()
   
-  materials <- unlist(stringr::str_split(params$material_select, ","))  
-  
-  for (material in materials) {
-    df_material <- read_table_try(material, params)
+  df_material <- read_table_try(params$material_select, params)
     
-    if (input_spqc_filter) {
-      #from df_report find columns that contain "SPQC"
-      material_cols <- grep(material, colnames(df_report))
-      spqc_cols <- grep("SPQC", colnames(df_report))
-      cv_cols <- grep("CV", colnames(df_report))
-      #find common value in material_cols, spqc_cols and cv_cols
-      common_cols <- intersect(material_cols, intersect(spqc_cols, cv_cols))
-      
-      if (length(common_cols > 0)) {
-        #find rows in df_report[common_cols] that are higer than 30
-        high_cv <- which(df_report[common_cols] > input_spqc_filter_value)
-        high_cv_analytes <- df_report$R_colnames[high_cv]
-      }else{
-        cat(file = stderr(), "No common columns found", "\n")
-      }
+  if (input_spqc_filter) {
+    #from df_report find columns that contain "SPQC"
+    material_cols <- grep(params$material_select, colnames(df_report))
+    spqc_cols <- grep("SPQC", colnames(df_report))
+    cv_cols <- grep("CV", colnames(df_report))
+    #find common value in material_cols, spqc_cols and cv_cols
+    common_cols <- intersect(material_cols, intersect(spqc_cols, cv_cols))
+    
+    if (length(common_cols > 0)) {
+      #find rows in df_report[common_cols] that are higer than 30
+      high_cv <- which(df_report[common_cols] > input_spqc_filter_value)
+      high_cv_analytes <- df_report$R_colnames[high_cv]
+    }else{
+      cat(file = stderr(), "No common columns found", "\n")
     }
-    
-    if (input_missing_filter) {
-      #filter df_start for material in Materials
-      df_material_start <- df_start[grep(material, df_start$Material),]
-      df_material_start <- df_material_start[,(ncol(df_material_start)-nrow(df_report)+1):ncol(df_material_start)]
-      #count the number of times "LOD" appears in each column of df_material_start
-      lod_count <- apply(df_material_start, 2, function(x) sum(grepl("LOD", x)))
-      lod_count <- round(lod_count/nrow(df_material_start)*100,2)
-      lod_column <- which(lod_count > input_missing_filter_value)
-      high_LOD_analytes <- df_report$R_colnames[lod_column]
-    }
-    
-    #from df_material remove columns with column names in high_cv_analytes
-    analytes_to_remove <- c(high_cv_analytes, high_LOD_analytes)
-    analytes_to_remove <- unique(analytes_to_remove)  
-  
-    if (length(analytes_to_remove) > 0) {
-      df_material <- df_material[,-which(colnames(df_material) %in% analytes_to_remove)]
-    }
-    
-    table_name <- stringr::str_c("filtered_", material)
-    write_table_try(table_name, df_material, params)
-    
   }
+    
+  if (input_missing_filter) {
+    #filter df_start for material in Materials
+    df_material_start <- df_start[grep(params$material_select, df_start$Material),]
+    df_material_start <- df_material_start[,(ncol(df_material_start)-nrow(df_report)+1):ncol(df_material_start)]
+    #count the number of times "LOD" appears in each column of df_material_start
+    lod_count <- apply(df_material_start, 2, function(x) sum(grepl("LOD", x)))
+    lod_count <- round(lod_count/nrow(df_material_start)*100,2)
+    lod_column <- which(lod_count > input_missing_filter_value)
+    high_LOD_analytes <- df_report$R_colnames[lod_column]
+  }
+    
+  #from df_material remove columns with column names in high_cv_analytes
+  analytes_to_remove <- c(high_cv_analytes, high_LOD_analytes)
+  analytes_to_remove <- unique(analytes_to_remove)  
+
+  if (length(analytes_to_remove) > 0) {
+    df_material <- df_material[,-which(colnames(df_material) %in% analytes_to_remove)]
+  }
+    
+  table_name <- stringr::str_c("filtered_", params$material_select)
+  write_table_try(table_name, df_material, params)
+    
+
 
   cat(file = stderr(), "Function spqc_missing_filter_bg...end", "\n")
 }

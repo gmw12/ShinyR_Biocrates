@@ -45,7 +45,7 @@ shinyServer(function(session, input, output) {
     
     
     if ("data_start" %in% list_tables(params)) {
-      create_data_table(session, input, output, params, "data_start")
+      create_data_table(session, input, output, params, "data_start", "QC")
     }
     
     if ("QC_Report" %in% list_tables(params)) {
@@ -116,7 +116,7 @@ shinyServer(function(session, input, output) {
       
       ui_render_process_data(session, input, output, params)
       
-      create_data_table(session, input, output, params, "data_start")
+      create_data_table(session, input, output, params, "data_start", "QC")
       
       report_template(session, input, output, params)
       
@@ -136,7 +136,7 @@ shinyServer(function(session, input, output) {
     
     replace_lod(session, input, output, params)
     
-    create_data_table(session, input, output, params, "data_impute")
+    create_data_table(session, input, output, params, "data_impute", "QC")
 
     cat(file = stderr(), "\n\n","replace_lod clicked...end", "\n")
     
@@ -161,23 +161,19 @@ shinyServer(function(session, input, output) {
     
   }) 
 
-  #------------------------------------------------------------------------------------------------------  
-  observeEvent(input$material_calc, {
-    
-    cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
-    
-    material_calc(session, input, output, params)
-    
-    cat(file = stderr(), "\n\n","material_calc clicked...end", "\n")
-    
-  }) 
-  
+
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$filter_calc, {
     
     cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
     
+    material_calc(session, input, output, params)
+    
     spqc_missing_filter(session, input, output, params)
+    
+    create_data_table(session, input, output, params, params$material_select, "Samples")
+    
+    create_data_table(session, input, output, params, str_c("filtered_",params$material_select), "Samples_Filtered")
     
     cat(file = stderr(), "\n\n","material_calc clicked...end", "\n")
     
@@ -186,17 +182,13 @@ shinyServer(function(session, input, output) {
   
   
   #------------------------------------------------------------------------------------------------------  
-  observeEvent(input$explore_start, {
+  observeEvent(input$create_pca, {
     
-    cat(file = stderr(), "\n\n","explore_start clicked...", "\n")
-    
-    create_explore_table(session, input, output, params)
-    
-    explore_start(session, input, output, params)
+    cat(file = stderr(), "\n\n","create_pca clicked...", "\n")
     
     interactive_pca2d(session, input, output, params)
     
-    cat(file = stderr(), "\n\n","explore_start clicked...end", "\n")
+    cat(file = stderr(), "\n\n","create_pca clicked...end", "\n")
     
   }) 
   
