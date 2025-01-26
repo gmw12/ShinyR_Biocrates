@@ -192,5 +192,17 @@ shinyServer(function(session, input, output) {
     
   }) 
   
+  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$create_excel, {
+    
+    cat(file = stderr(), "\n\n","create_excel clicked...", "\n")
+    
+    final_excel(session, input, output, params)
+    
+    cat(file = stderr(), "\n\n","create_excel clicked...end", "\n")
+    
+  }) 
+  
   removeModal()     
 })

@@ -183,16 +183,23 @@ cat(file = stderr(), str_c("table name = ", table_name), "\n")
  df$Sample.description[grep("NIST", df$Sample.description)] <- "NIST"
  df$Sample.description[grep("Golden West", df$Sample.description)] <- "GW"
  df$Sample.description[grep("XXXX", df$Sample.description)] <- "Sample"
- #df$Sample.description <- stringr::str_c(df$Sample.description, "_", df$Submission.name)    
-
- df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
  
+ if(input$pca_by_plate) {
+  df$Sample.description <- stringr::str_c(df$Sample.description, "_", df$Submission.name)    
+ }
+ 
+ if(input$pca_spqc_only){
+  df <- df[grep("SPQC", df$Sample.description),]
+ }
+ 
+ 
+ df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
  df_data <- as.data.frame(sapply(df_data, as.numeric))
  df_plot <- cbind(df$Sample.description, df_data)
  
  namex <- stringr::str_c(df$Sample.bar.code, "_", df$Sample.description, "_", df$Submission.name)
  
- color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow")
+ color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow", "green", "pink", "grey", "lightblue")
  color_list <- color_list[1:length(unique(df$Sample.description))]
  
  x_pca <- prcomp(df_plot[,-1], scale=TRUE)

@@ -231,6 +231,11 @@ body <- dashboardBody(
                                               radioButtons("data_type", label = h3("Data Type"),
                                                            choices = list("Unfiltered" = 1, "Filtered" = 2), 
                                                            selected = 1),
+                                              br(),
+                                              checkboxInput("pca_by_plate", label = "Separate by Plate?", value = FALSE),
+                                              br(),
+                                              checkboxInput("pca_spqc_only", label = "Show only SPQC?", value = FALSE),
+                                              br(),
                                               actionButton("create_pca", label = "Create PCA", width = 150,
                                                            style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                                               hr(),
@@ -270,9 +275,13 @@ body <- dashboardBody(
                                               br(),
                                               
                                               checkboxInput("excel_raw_data", label = "Raw Data", value = TRUE),
+                                              checkboxInput("excel_raw_data_no_indicator", label = "Raw Data no status/indicators", value = FALSE),
+                                              checkboxInput("excel_impute_data", label = "Imputed Data", value = TRUE),
                                               checkboxInput("excel_report", label = "Sample Info Report", value = TRUE),
                                               checkboxInput("excel_qc_report", label = "QC Report", value = TRUE),
                                               checkboxInput("excel_samples", label = "Analyzed Materials", value = TRUE),
+                                              
+                                              textInput("excel_filename", label = "File Name", value = "final_data_return.xlsx", width = 250),
                                               
                                               actionButton("create_excel", label = "Create Excel", width = 150,
                                                            style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
