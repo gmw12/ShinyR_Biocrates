@@ -33,31 +33,8 @@ shinyServer(function(session, input, output) {
   
   if (exists('params')) {
     cat(file = stderr(), "params file exists...", "\n\n")
-    ui_render_load_data(session, input, output)
-    ui_render_process_data(session, input, output, params)
     
-    
-    if ("Report" %in% list_tables(params)) {
-      create_report_table(session, input, output, params, "Report")
-    }else {
-      create_report_table(session, input, output, params, "Report_template")
-    }
-    
-    
-    if ("data_impute" %in% list_tables(params)) {
-      create_data_table(session, input, output, params, "data_impute", "QC")
-    } else if ("data_start" %in% list_tables(params)) {
-      create_data_table(session, input, output, params, "data_start", "QC")
-    }
-    
-    
-    
-    if ("QC_Report" %in% list_tables(params)) {
-      create_qc_table(session, input, output, params)
-      ui_render_qc_plots(session, input, output)
-    }
-    
-    update_widgets(session, input, output, params)
+    ui_render_startup(session, input, output, params)
 
   }else {
     #fresh start, create default params
@@ -147,7 +124,8 @@ shinyServer(function(session, input, output) {
       archive_name <- load_archive_file(session, input, output)
 
       output$archive_file_name <- renderText({archive_name})
-
+      
+      ui_render_startup(session, input, output, params)
 
       cat(file = stderr(), "\n\n","sfb_archive_file button clicked...end", "\n")
     }

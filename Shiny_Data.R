@@ -741,14 +741,15 @@ load_archive_file <- function(session, input, output){
   archive_zip <- archive_sfb$datapath
   archive_name <- basename(archive_sfb$datapath)
 
-  
- save(archive_sfb, file = "testarchive_sfb")
+  #save(archive_sfb, file = "testarchive_sfb")
   # load(file = "testarchive_sfb")
 
+  database_dir <- stringr::str_c(getwd(), "/database")
   create_dir(database_dir)
   
   cat(file = stderr(), stringr::str_c("unzip file to database_dir:  ", database_dir), "\n")
   utils::unzip(zipfile = archive_zip, exdir = database_dir)
+  load(file = stringr::str_c(database_dir, "/params"))
   
   temp_files <- list.files(database_dir)
   if (length(temp_files) == 0) {
@@ -758,25 +759,7 @@ load_archive_file <- function(session, input, output){
   cat(file = stderr(), stringr::str_c("files in database_dir:  ", temp_files), "\n")
 
   database_path <- stringr::str_c(database_dir, "/", file_name)
-  
-  #load params file
-  if (file.exists(stringr::str_c(database_dir, "/params"))){
-    load(file=stringr::str_c(database_dir, "/params"))
-  }else{
-    conn <- RSQLite::dbConnect(RSQLite::SQLite(), database_path) 
-    params <- RSQLite::dbReadTable(conn, "params")
-    RSQLite::dbDisconnect(conn)
-  }
-  
-  params$database_dir <- database_dir
-  params$database_path <- stringr::str_c(database_dir, "/", file_name)
-  
-  #check params dir's and update if needed
-  params <- archive_update_app(session, input, output, params, archive_path)
-  
-  params <<- params
 
-  #removeModal()
   cat(file = stderr(), "Function load_archive_file...end", "\n")
   return(archive_zip)
 }

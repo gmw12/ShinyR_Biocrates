@@ -1,4 +1,44 @@
 cat(file = stderr(), "load Shiny_UI_Update.R", "\n")
+#-------------------------------------------------------------------------------------------
+
+
+ui_render_startup <- function(session, input, output, params) {
+  cat(file = stderr(), "Function ui_render_startup", "\n")
+  
+  ui_render_load_config(session, input, output)
+  
+  ui_render_load_data(session, input, output)
+  ui_render_process_data(session, input, output, params)
+  
+  
+  if ("Report" %in% list_tables(params)) {
+    create_report_table(session, input, output, params, "Report")
+  }else {
+    create_report_table(session, input, output, params, "Report_template")
+  }
+  
+  
+  if ("data_impute" %in% list_tables(params)) {
+    create_data_table(session, input, output, params, "data_impute", "QC")
+  } else if ("data_start" %in% list_tables(params)) {
+    create_data_table(session, input, output, params, "data_start", "QC")
+  }
+  
+  
+  
+  if ("QC_Report" %in% list_tables(params)) {
+    create_qc_table(session, input, output, params)
+    ui_render_qc_plots(session, input, output)
+  }
+  
+  update_widgets(session, input, output, params)
+  
+  
+  
+  cat(file = stderr(), "Function ui_render_startup...end", "\n\n")
+}
+
+
 
 #-------------------------------------------------------------------------------------------
 ui_render_load_config <- function(session, input, output) {
