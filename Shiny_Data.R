@@ -351,6 +351,7 @@ spqc_calc_bg <- function(params){
   
   df <- read_table_try("data_impute", params)
   df_report <- read_table_try("Report_template", params)
+  df_spqc_mean <- df_report[,1:3]
   
   #subset of data with "SPQC" in Sample.description
   df_spqc <- df[grep("SPQC", df$Sample.description),]
@@ -368,9 +369,25 @@ spqc_calc_bg <- function(params){
     df_cv <- round(100 * (apply(df_material, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
     df_report[stringr::str_c("Average ", material, " SPQC(uM)")] <- df_mean
     df_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- df_cv
+    
+    #calc the sum intensity from each SPQC sample
+    for (plate in plates) {
+      df_material <- df_spqc[grep(material, df_spqc$Material),]
+      df_plate <- df_material[grep(plate, df_material$Plate.bar.code),]
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
+      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      df_spqc_mean[stringr::str_c("SPQC Mean ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+    }
   }
 
+  df_spqc_mean <- df_spqc_mean[,4:ncol(df_spqc_mean)]
+  total_mean <- rowMeans(df_spqc_mean, na.rm = TRUE)
+  
+  #divide each column in dfs_spqc_sum by total_sum
+  df_spqc_factor <- df_spqc_mean/total_mean
+  
   write_table_try("Report", df_report, params)
+  write_table_try("SPQC_Sum", df_spqc_sum, params)
   
   cat(file = stderr(), "Function spqc_calc_bg...end", "\n")
 }

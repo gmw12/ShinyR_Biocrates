@@ -65,6 +65,7 @@ df_data_start <- read_table('data_start', params)
 df_no_ind <- read_table_try("data_no_indicators", params)
 df_plasma <- read_table('plasma', params)
 
+df_data_impute <- read_table('data_impute', params)
 
 
 #-------------------------------------------------------------------------------------------
@@ -105,3 +106,34 @@ ggplot(df_box_wide, aes(x=as.factor(Sample), y=CV, fill = Sample)) +
   theme(legend.position = "none", axis.title.y = element_blank()) +
   labs(title = "Boxplot of CVs", x = "CV")
   
+
+#-------
+
+df <- read_table_try("data_impute", params)
+df_report <- read_table_try("Report_template", params)
+
+#subset of data with "SPQC" in Sample.description
+df_spqc <- df[grep("SPQC", df$Sample.description),]
+plates <- unique(df_spqc$Plate.bar.code)
+materials <- unique(df_spqc$Material)
+
+
+colnames(df_spqc_factor) <- gsub("SPQC Mean ", "", colnames(df_spqc_factor))
+df_spqc_factor$analyte <- df_report$Abbreviation
+test_df <- tidyr::pivot_longer(df_spqc_factor, cols = colnames(df_spqc_factor)[1:(ncol(df_spqc_factor)-1)], names_to = "Sample", values_to = "Mean")
+
+
+ggplot(data=test_df, aes(x=analyte, y=Mean, group=Sample)) +
+  geom_line(aes(color=Sample))+
+  theme_classic()+
+  geom_point(aes(color=Sample)) +
+  ggplot2::ggtitle("Normalization Factors by Plate") + 
+  #ggplot2::xlab(NULL) +
+  theme(plot.title = element_text(hjust = 0.5, size=12), 
+        axis.title = element_text(size=8, color="black"),
+        #axis.text.x = element_text(size=8, angle = 45, hjust=1, color="black"),
+        axis.text.y = element_text(size=8,  color="black"),
+        axis.text.x = element_blank()
+  ) 
+
+
