@@ -173,6 +173,13 @@ body <- dashboardBody(
                                         hr(),
                                         imageOutput("spqc_box")
                                  )
+                        ),
+                        
+                        tabPanel("SPQC Norm Factor",
+                                 column(width =12, offset =0,
+                                        hr(),
+                                        imageOutput("spqc_line")
+                                 )
                         )
                         
 
@@ -321,7 +328,7 @@ body <- dashboardBody(
                      br(),
                      br(),
                      br(),
-                     actionButton("clean_environment", label = "Clean Environment", width = 100,
+                     actionButton("clean_environment", label = "Clean Environment", width = 150,
                                   style="color: #fff; background-color: #337ab7; border-color: #2e6da4")
               )
             )

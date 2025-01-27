@@ -44,9 +44,13 @@ shinyServer(function(session, input, output) {
     }
     
     
-    if ("data_start" %in% list_tables(params)) {
+    if ("data_impute" %in% list_tables(params)) {
+      create_data_table(session, input, output, params, "data_impute", "QC")
+    } else if ("data_start" %in% list_tables(params)) {
       create_data_table(session, input, output, params, "data_start", "QC")
     }
+    
+    
     
     if ("QC_Report" %in% list_tables(params)) {
       create_qc_table(session, input, output, params)
@@ -59,6 +63,7 @@ shinyServer(function(session, input, output) {
     #fresh start, create default params
 
     create_default_params(volumes, python_path) 
+    updateTextInput(session, "file_prefix", value = params$file_prefix)
   }
   
   #button observers
@@ -128,6 +133,42 @@ shinyServer(function(session, input, output) {
     }
     
   }) 
+
+  #------------------------------------------------------------------------------------------------------
+  #Load data file
+  observeEvent(input$sfb_archive_file, {
+
+    cat(file = stderr(), "\n\n","sfb_archive_file button clicked...", "\n")
+
+    if (is.list(input$sfb_archive_file)) {
+      cat(file = stderr(), "\n\n","sfb_archive_file button clicked...1", "\n")
+
+      #copy zip file contents to database dir, load params
+      archive_name <- load_archive_file(session, input, output)
+
+      output$archive_file_name <- renderText({archive_name})
+
+
+      cat(file = stderr(), "\n\n","sfb_archive_file button clicked...end", "\n")
+    }
+
+  })
+
+
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$replace_lod, {
@@ -203,6 +244,20 @@ shinyServer(function(session, input, output) {
     cat(file = stderr(), "\n\n","create_excel clicked...end", "\n")
     
   }) 
+  
+  #------------------------------------------------------------------------------------------------------  
+  observeEvent(input$archive_data, {
+    
+    cat(file = stderr(), "\n\n","archive_data clicked...", "\n")
+    
+    zip_data_save(session, input, output, params)
+    
+    cat(file = stderr(), "\n\n","archive_data clicked...end", "\n")
+    
+  }) 
+  
+  
+
   
   removeModal()     
 })

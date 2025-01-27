@@ -55,6 +55,10 @@ ui_render_qc_plots <- function(session, input, output) {
     list(src = str_c(params$plot_path,"SPQC_boxplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
   }, deleteFile = FALSE)
   
+  output$spqc_line <- renderImage({
+    list(src = str_c(params$plot_path,"SPQC_factor_line_plot.png"), contentType = 'image/png', width = 1200, height = 600, alt = "this is alt text")
+  }, deleteFile = FALSE)
+  
   cat(file = stderr(), "function ui_render_qc_plots...end", "\n")
 }
 
@@ -69,6 +73,9 @@ update_widgets <- function(session, input, output, params) {
     selected_materials <- as.list(strsplit(params$material_select, ",")[[1]])
     updateSelectInput(session, "material_select", selected = selected_materials)
   }
+  
+  
+  updateTextInput(session, "file_prefix", value = params$file_prefix)
   
  cat(file = stderr(), "Function - update_widgets...end", "\n")
 }

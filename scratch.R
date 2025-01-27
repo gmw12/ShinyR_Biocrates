@@ -123,17 +123,17 @@ df_spqc_factor$analyte <- df_report$Abbreviation
 test_df <- tidyr::pivot_longer(df_spqc_factor, cols = colnames(df_spqc_factor)[1:(ncol(df_spqc_factor)-1)], names_to = "Sample", values_to = "Mean")
 
 
-ggplot(data=test_df, aes(x=analyte, y=Mean, group=Sample)) +
-  geom_line(aes(color=Sample))+
-  theme_classic()+
-  geom_point(aes(color=Sample)) +
+ggplot2::ggplot(data=test_df, ggplot2::aes(x=analyte, y=Mean, group=Sample)) +
+  ggplot2::geom_line(ggplot2::aes(color=Sample))+
+  ggplot2::theme_classic()+
+  ggplot2::geom_point(ggplot2::aes(color=Sample)) +
   ggplot2::ggtitle("Normalization Factors by Plate") + 
   #ggplot2::xlab(NULL) +
-  theme(plot.title = element_text(hjust = 0.5, size=12), 
-        axis.title = element_text(size=8, color="black"),
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, size=12), 
+        axis.title = ggplot2::element_text(size=8, color="black"),
         #axis.text.x = element_text(size=8, angle = 45, hjust=1, color="black"),
-        axis.text.y = element_text(size=8,  color="black"),
-        axis.text.x = element_blank()
+        axis.text.y = ggplot2::element_text(size=8,  color="black"),
+        axis.text.x = ggplot2::element_blank()
   ) 
 
 

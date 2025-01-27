@@ -14,15 +14,20 @@ create_qc_plots <- function(sesion, input, output, params){
   bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", "Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
   bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", "Report", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
   
+  bg_norm_line <- callr::r_bg(func = norm_line_bg, args = list(params), stderr = str_c(params$error_path, "//error_normlineplot.txt"), supervise = TRUE)
+  
+  
   bg_qc_box$wait()
   bg_qc_bar$wait()
   bg_spqc_box$wait()
   bg_spqc_bar$wait()
+  bg_norm_line$wait()
   
   print_stderr("error_qcbarplot.txt")
   print_stderr("error_qcboxplot.txt")
   print_stderr("error_spqcbarplot.txt")
   print_stderr("error_spqcboxplot.txt")
+  print_stderr("error_normlineplot.txt")
   
   wait_cycle <- 0
   while (!file.exists(str_c(params$plot_path,"SPQC_barplot.png"))) {
@@ -37,6 +42,56 @@ create_qc_plots <- function(sesion, input, output, params){
   cat(file = stderr(), "create_qc_plots...end", "\n")
   removeModal()
 }
+
+#------------------
+norm_line_bg <- function(params) {
+  cat(file = stderr(), stringr::str_c("function norm_line_bg...."), "\n")
+  source('Shiny_File.R')
+  
+  df_spqc_factor <- read_table_try("SPQC_Factor", params)
+  df_report <- read_table_try("Report", params)
+  
+  colnames(df_spqc_factor) <- gsub("SPQC.Mean.", "", colnames(df_spqc_factor))
+  df_spqc_factor$analyte <- df_report$Abbreviation
+  test_df <- tidyr::pivot_longer(df_spqc_factor, cols = colnames(df_spqc_factor)[1:(ncol(df_spqc_factor)-1)], names_to = "Sample", values_to = "Mean")
+  
+  file_name <- stringr::str_c(params$plot_path, "SPQC_factor_line_plot.png")
+  
+  
+  if (params$data_source == "BileAcid") {
+    ggplot2::ggplot(data=test_df, ggplot2::aes(x=analyte, y=Mean, group=Sample)) +
+      ggplot2::geom_line(ggplot2::aes(color=Sample))+
+      ggplot2::theme_classic()+
+      ggplot2::geom_point(ggplot2::aes(color=Sample)) +
+      ggplot2::ggtitle("Normalization Factors by Plate") + 
+      #ggplot2::xlab(NULL) +
+      ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, size=12), 
+                     axis.title = ggplot2::element_text(size=8, color="black"),
+                     axis.text.x = ggplot2::element_text(size=8, angle = 45, hjust=1, color="black"),
+                     axis.text.y = ggplot2::element_text(size=8,  color="black"),
+                     #axis.text.x = ggplot2::element_blank()
+      ) 
+    ggplot2::ggsave(file_name, width = 12, height = 6)
+  }else{
+    ggplot2::ggplot(data=test_df, ggplot2::aes(x=analyte, y=Mean, group=Sample)) +
+      ggplot2::geom_line(ggplot2::aes(color=Sample))+
+      ggplot2::theme_classic()+
+      ggplot2::geom_point(ggplot2::aes(color=Sample)) +
+      ggplot2::ggtitle("Normalization Factors by Plate") + 
+      #ggplot2::xlab(NULL) +
+      ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, size=12), 
+                     axis.title = ggplot2::element_text(size=8, color="black"),
+                     #axis.text.x = ggplot2::element_text(size=8, angle = 45, hjust=1, color="black"),
+                     axis.text.y = ggplot2::element_text(size=8,  color="black"),
+                     axis.text.x = ggplot2::element_blank()
+      )
+    ggplot2::ggsave(file_name, width = 12, height = 6)
+  }
+  
+  cat(file = stderr(), stringr::str_c("function norm_line_bg....end"), "\n")
+}
+
+
 
 #------------------
 qc_grouped_plot_bg <- function(plot_title, table_name, input_qc_acc, params) {
