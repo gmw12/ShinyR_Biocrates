@@ -12,32 +12,16 @@ set_user <- function() {
   database_dir <<- stringr::str_c(getwd(), "/database")
   
   while (site_user == "unknown") {
-    if (Sys.info()["nodename"] == "oldmac") {
-      volumes <<- c(dd = '/Users/gregwaitt/Documents/Data', wd = '.', Home = fs::path_home(),  getVolumes()())
-      #version determines website content
-      site_user <<- "dpmsr"
-    }else if (Sys.info()["nodename"] == "titanshinyu20") {
+    if (Sys.info()["nodename"] == "titanshinyu20") {
       #for titan_black VM
       volumes <<- c(dd = '/home/dpmsr/shared/h_drive', dd2 = '/home/dpmsr/shared/other_black', RawData = '/home/dpmsr/shared/RawData', wd = '.', Home = fs::path_home(), getVolumes()())
-      site_user <<- "dpmsr"
-    }else if (Sys.info()["nodename"] == "greg-GS63VR-7RF") {
-      #for greg linux laptop
-      volumes <<- c(dd = '/home/dpmsr/shared', wd = '.', Home = fs::path_home(), getVolumes()())
-      site_user <<- "dpmsr"
-    }else if (Sys.info()["nodename"] == "greg-ThinkPad-W550s") {
-      #for greg linux laptop
-      volumes <<- c(dd = '/home/dpmsr/shared', wd = '.', Home = fs::path_home(), getVolumes()())
       site_user <<- "dpmsr"
     }else if (Sys.info()["nodename"] == "bob") {
       volumes <<- c(dd = '/home/dpmsr/mnt/h_black2', h1 = '/home/dpmsr/mnt/h_black1', h2 = '/home/dpmsr/mnt/h_black2', dc = 'home/dpmsr/mnt/RawData', wd = '.', Home = fs::path_home(), getVolumes()())
       site_user <<- "dpmsr"
       python_path <<- "/home/dpmsr/anaconda3/envs/PDP/bin/python3"
-    }else if (Sys.info()["nodename"] == "waittblack") {
-      volumes <<- c(dd = '/data', wd = '.', Home = fs::path_home(), getVolumes()())
-      site_user <<- "dpmsr"
-      python_path <<- "/home/dpmsr/anaconda3/envs/PDP/bin/python3"
     }else if (Sys.info()["nodename"] == "shiny-titan") {
-      volumes <<- c(dd = '/mnt/h_black2', h1 = '/mnt/h_black1', h2 = '/mnt/h_black2', dc = '/mnt/RawData', wd = '.', Home = fs::path_home(), getVolumes()())
+      volumes <<- c(dd = '/mnt/RawData', wd = '.', Home = fs::path_home(), getVolumes()())
       site_user <<- "dpmsr"
       python_path <<- "/home/user/anaconda3/envs/python38/bin/python3"
     }else if (Sys.info()["nodename"] == "Gregorys-MBP.wired.duke.local" |Sys.info()["nodename"] == "gregorys-mbp.lan" | Sys.info()["nodename"] == "mac.lan" | Sys.info()["nodename"] == "Gregorys-MacBook-Pro.local" ) {
