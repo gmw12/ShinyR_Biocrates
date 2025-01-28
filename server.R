@@ -2,7 +2,6 @@ options(shiny.maxRequestSize = 4000*1024^2)
 cat(file = stderr(), "server.R started", "\n")
 
 #app_version <- '2025.01.08'
-source("Shiny_Setup.R")
 source("Shiny_Startup.R")
 
 if (!exists('params')) {
