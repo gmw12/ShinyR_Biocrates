@@ -456,7 +456,7 @@ material_calc <- function(session, input, output, params){
   
   #check if params$material_list exists
   if (length(params$material_list) == 0) {
-    params$material_list <- c(input$material_select)
+    params$material_list <- input$material_select
   }else{
     params$material_list <- stringr::str_c(params$material_list, ",", input$material_select)
   }
