@@ -16,6 +16,12 @@ load_data_file <- function(session, input, output, params){
   bg_load_data$wait()
   print_stderr("error_load_data.txt")
   
+  infinity_error <- bg_load_data$get_result()
+  
+  if (infinity_error) {
+    shinyalert("Oops!", "Data contains infinity values", type = "error")
+  }
+  
   #parameters are written to db during r_bg (process cannot write to params directly)
   params <<- read_table_try("params", params)
   
@@ -33,6 +39,13 @@ load_data_bg <- function(data_sfb, params){
   df <- data.table::fread(file = data_sfb$datapath, header = TRUE, skip=1, stringsAsFactors = FALSE, sep = "\t", fill=TRUE)
   #save(df, file="zdfloadunknowndata")    #  load(file="zdfloadunknowndata") 
   
+  #search for "infinity" in df report infinity_error = TRUE if found
+  if (any(grepl("infinity", df, ignore.case = TRUE))){
+    infinity_error <- TRUE
+  }else{
+    infinity_error <- FALSE  
+  }
+  
   write_table_try("data_raw", df, params)
   
   write_table_try("params", params, params)
@@ -40,6 +53,8 @@ load_data_bg <- function(data_sfb, params){
   
   gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
   cat(file = stderr(), "function load_unkown_data_bg...end", "\n\n")
+  
+  return(infinity_error)
 }
 #---------------------------------------------------------------------
 
