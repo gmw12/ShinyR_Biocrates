@@ -114,7 +114,7 @@ remove_indicators_bg <- function(params){
   df_analytes <- read_table_try("analytes", params)  
 
   #find colnumber for df_analytes$Abbreviation[1]
-  col_num <- which(colnames(df) == df_analytes$Abbreviation[1])
+  col_num <- which(colnames(df) == df_analytes$Name[1])
   last_col <- col_num + nrow(df_analytes) - 1
   
   df_indicators <- df[,(last_col + 1):ncol(df)]
@@ -167,7 +167,7 @@ separate_data_bg <- function(params){
   df_analytes <- read_table_try("analytes", params)  
   
   #find colnumber for df_analytes$Abbreviation[1]
-  col_num <- which(colnames(df) == df_analytes$Abbreviation[1])
+  col_num <- which(colnames(df) == df_analytes$Name[1])
   df_info <- df_info[,(col_num - 1):ncol(df_info)]
 
   plates <- unique(df_data$Plate.bar.code)
