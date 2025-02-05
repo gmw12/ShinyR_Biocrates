@@ -169,8 +169,8 @@ separate_data_bg <- function(params){
   #find colnumber for df_analytes$Abbreviation[1]
   col_num <- which(colnames(df) == df_analytes$Name[1])
   df_info <- df_info[,(col_num - 1):ncol(df_info)]
-
-  plates <- unique(df_data$Plate.bar.code)
+  
+  plates <- unique(df_data[-grep("Standard", df_data$Sample.type),]$Plate.bar.code)
   params$plate_number <- length(plates)
   params$plates <- stringr::str_c(plates, collapse = ",")
   
@@ -231,23 +231,31 @@ report_template_bg <- function(params){
   df_report_colnames <- colnames(df_report)
   
 
-  
   for (plate in plates) {
     
-    #subset df_info for rows that the first column contains plate
+    #works for bileacids and q500, cases where multiple plates listed
+    df_plate <- df_info[grep(paste(plate, collapse="|"), df_info[[1]]),]
     df_plate <- df_info[grep(plate, df_info[[1]]),]
-    df_lod <- df_plate[grep("LOD", df_plate[[1]]),]
+    df_calc_lod <- df_plate[grep("calc", df_plate[[1]]),]
+    df_op_lod <- df_plate[grep("from OP", df_plate[[1]]),]
+    df_calc_lod <- as.data.frame(lapply(df_calc_lod, as.numeric))
+    df_op_lod <- as.data.frame(lapply(df_op_lod, as.numeric))
+    df_calc_lod[is.na(df_calc_lod)] <- 0
+    df_op_lod[is.na(df_op_lod)] <- 0
+    #consolidate values from flow inject and lcms (does nothing for bileacid)
+    calc_lod <- apply(df_calc_lod[2:ncol(df_calc_lod)], 2, max)
+    op_lod <- apply(df_op_lod[2:ncol(df_op_lod)], 2, max)
     
-    #if any value in row 1 = 0 then the change the value to the value in row 2
-    for (i in 2:ncol(df_lod)) {
-      if (df_lod[1,i] == 0) { df_lod[1,i] <- df_lod[2,i] }
+    #if value in calc_lod is 0 then replace with value from op_lod
+    for (i in 1:length(calc_lod)) {
+      if (calc_lod[i] == 0) { calc_lod[i] <- op_lod[i] }
     }
-  
+    
     col_name <- stringr::str_c("LOD_", plate, ", uM")
     df_report_colnames <- c(df_report_colnames, col_name)
     
     #create new column called from col_name in df_report
-    df_report[[col_name]] <- t(df_lod[1,2:ncol(df_lod)])
+    df_report[[col_name]] <- calc_lod
       
   }
   

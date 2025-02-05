@@ -58,7 +58,9 @@ df_analytes <- read_table('Analytes', params)
 df_qc <- read_table('QC', params)
 df_qc_report <- read_table('QC_Report', params)
 df_report <- read_table('Report', params)
+df_report_template <- read_table('Report_template', params)
 df_data_raw <- read_table('data_raw', params)
+df_data_start <- read_table('data_start', params)
 df_data_status <- read_table('data_status', params)
 df_info <- read_table('data_info', params)
 df_data_start <- read_table('data_start', params)
@@ -137,3 +139,33 @@ ggplot2::ggplot(data=test_df, ggplot2::aes(x=analyte, y=Mean, group=Sample)) +
   ) 
 
 
+#-------------------------------------------------------------------------------------------
+# count lines in all *.R files in the current directory
+
+#-------------------------------------------------------------------------------------------
+# Create a function to count lines in a file
+count_lines <- function(file) {
+  lines <- readLines(file)
+  return(length(lines))
+}
+#-------------------------------------------------------------------------------------------
+# Get a list of all *.R files in the current directory
+#-------------------------------------------------------------------------------------------
+r_files <- list.files(pattern = "\\.R$", full.names = TRUE)
+#-------------------------------------------------------------------------------------------
+# Use lapply to apply the function to each file and get the results
+#-------------------------------------------------------------------------------------------
+line_counts <- lapply(r_files, count_lines)
+#-------------------------------------------------------------------------------------------
+# Combine the results into a data frame
+#-------------------------------------------------------------------------------------------
+line_counts_df <- data.frame(
+  File = r_files,
+  Lines = unlist(line_counts)
+)
+#-------------------------------------------------------------------------------------------
+# Print the data frame
+#-------------------------------------------------------------------------------------------
+print(line_counts_df)
+print(sum(line_counts_df$Lines))
+      

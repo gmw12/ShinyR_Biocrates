@@ -346,10 +346,9 @@ body <- dashboardBody(
 )
 
 
-
-
 dashboardPage(
   dashboardHeader(title = "Duke Biocrates Data Processing", titleWidth = 325),
   sidebar,
   body
-)  
+)
+#end of ui.R
