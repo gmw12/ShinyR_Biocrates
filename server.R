@@ -48,6 +48,7 @@ shinyServer(function(session, input, output) {
   #------------------------------------------------------------------------------------------------------  
   #Load design file
   observeEvent(input$sfb_config_file, {
+    showModal(modalDialog("Loading config file...", footer = NULL))
     
     cat(file = stderr(), "\n\n", "sfb_design_file button clicked...", "\n")
     
@@ -69,6 +70,7 @@ shinyServer(function(session, input, output) {
       #create_config_table(session, input, output)
     }
     
+    removeModal()
   })
   
   #------------------------------------------------------------------------------------------------------  
@@ -149,6 +151,7 @@ shinyServer(function(session, input, output) {
   
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$replace_lod, {
+    showModal(modalDialog("Imputing LOD's...", footer = NULL))
     
     cat(file = stderr(), "\n\n","replace_lod clicked...", "\n")
     
@@ -158,10 +161,12 @@ shinyServer(function(session, input, output) {
 
     cat(file = stderr(), "\n\n","replace_lod clicked...end", "\n")
     
+    removeModal()
   }) 
   
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$spqc_qc_calc, {
+    showModal(modalDialog("QC Calculations...", footer = NULL))
     
     cat(file = stderr(), "\n\n","spqc_qc_calc clicked...", "\n")
     
@@ -176,6 +181,8 @@ shinyServer(function(session, input, output) {
     create_qc_plots(sesion, input, output, params)
     
     cat(file = stderr(), "\n\n","spqc_qc_calc clicked...end", "\n")
+    removeModal()
+    
     
   }) 
 
