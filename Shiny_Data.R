@@ -27,6 +27,7 @@ load_config_file <- function(session, input, output){
   #create_dir(database_dir)
   params$error_path <<- create_dir(str_c(params$data_path, "Error"))
   params$plot_path <<- create_dir(str_c(params$data_path, "Plots"))
+  params$backup_path <<- create_dir(str_c(params$backup_path, "Backup"))
   #create_dir(params$error_path)
   
   cat(file = stderr(), str_c("loading config file from ", params$config_path), "\n")
@@ -64,6 +65,8 @@ load_data_file <- function(session, input, output, params){
   data_sfb <- parseFilePaths(volumes, input$sfb_data_file)
   data_path <- str_extract(data_sfb$datapath, "^/.*/")
   params$data_file <- basename(data_sfb$datapath)
+  
+  save_data(data_sfb$datapath)
   
   cat(file = stderr(), str_c("loading data file(s) from ", data_path[1]), "\n")
   

@@ -135,20 +135,6 @@ shinyServer(function(session, input, output) {
 
 
 
-
-
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$replace_lod, {
     showModal(modalDialog("Imputing LOD's...", footer = NULL))

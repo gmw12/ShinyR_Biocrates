@@ -52,7 +52,7 @@ norm_line_bg <- function(params) {
   df_report <- read_table_try("Report", params)
   
   colnames(df_spqc_factor) <- gsub("SPQC.Mean.", "", colnames(df_spqc_factor))
-  df_spqc_factor$analyte <- df_report$Abbreviation
+  df_spqc_factor$analyte <- df_report$Name
   test_df <- tidyr::pivot_longer(df_spqc_factor, cols = colnames(df_spqc_factor)[1:(ncol(df_spqc_factor)-1)], names_to = "Sample", values_to = "Mean")
   
   file_name <- stringr::str_c(params$plot_path, "SPQC_factor_line_plot.png")
@@ -76,7 +76,7 @@ norm_line_bg <- function(params) {
     ggplot2::ggplot(data=test_df, ggplot2::aes(x=analyte, y=Mean, group=Sample)) +
       ggplot2::geom_line(ggplot2::aes(color=Sample))+
       ggplot2::theme_classic()+
-      ggplot2::geom_point(ggplot2::aes(color=Sample)) +
+      ggplot2::geom_point(ggplot2::aes(color=Sample), size=1) +
       ggplot2::ggtitle("Normalization Factors by Plate") + 
       #ggplot2::xlab(NULL) +
       ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, size=12), 
@@ -237,7 +237,11 @@ cat(file = stderr(), str_c("table name = ", table_name), "\n")
  df$Sample.description[grep("SPQC", df$Sample.description)] <- "SPQC"
  df$Sample.description[grep("NIST", df$Sample.description)] <- "NIST"
  df$Sample.description[grep("Golden West", df$Sample.description)] <- "GW"
- df$Sample.description[grep("XXXX", df$Sample.description)] <- "Sample"
+ match_list <- c("SPQC", "NIST", "Golden West")
+ #df$Sample.description[grep("XXXX", df$Sample.description)] <- "Sample"
+ df$Sample.description[-grep(paste(match_list, collapse="|"), df$Sample.description)] <- "Sample"
+
+  
  
  if(input$pca_by_plate) {
   df$Sample.description <- stringr::str_c(df$Sample.description, "_", df$Submission.name)    
@@ -260,20 +264,20 @@ cat(file = stderr(), str_c("table name = ", table_name), "\n")
  x_pca <- prcomp(df_plot[,-1], scale=TRUE)
  test_this <- df_plot[,1]
 
-  x_gr <- factor(unlist(test_this))
-  cat(file=stderr(), "interactive_pca2d...2" , "\n")
-  summary(x_gr)
-  df_out <- as.data.frame(x_pca$x)
-  #df_out_test <<- df_out
-  df_xgr <- data.frame(x_gr)
-  #df_xgr_test <<- df_xgr
-  #df_xgr$x_gr <- as.character(df_xgr$x_gr)
+ x_gr <- factor(unlist(test_this))
+ cat(file=stderr(), "interactive_pca2d...2" , "\n")
+ summary(x_gr)
+ df_out <- as.data.frame(x_pca$x)
+ #df_out_test <<- df_out
+ df_xgr <- data.frame(x_gr)
+ #df_xgr_test <<- df_xgr
+ #df_xgr$x_gr <- as.character(df_xgr$x_gr)
   
-  cat(file=stderr(), "interactive_pca2d...3" , "\n")
-  hover_data <- data.frame(cbind(namex, df_out[[input$stats_pca2d_x]], df_out[[input$stats_pca2d_y]]), stringsAsFactors = FALSE  )
-  colnames(hover_data) <- c("Sample", "get(input$stats_pca2d_x)", "get(input$stats_pca2d_y)")
-  hover_data$`get(input$stats_pca2d_x)` <- as.numeric(hover_data$`get(input$stats_pca2d_x)`)
-  hover_data$`get(input$stats_pca2d_y)` <- as.numeric(hover_data$`get(input$stats_pca2d_y)`)
+ cat(file=stderr(), "interactive_pca2d...3" , "\n")
+ hover_data <- data.frame(cbind(namex, df_out[[input$stats_pca2d_x]], df_out[[input$stats_pca2d_y]]), stringsAsFactors = FALSE  )
+ colnames(hover_data) <- c("Sample", "get(input$stats_pca2d_x)", "get(input$stats_pca2d_y)")
+ hover_data$`get(input$stats_pca2d_x)` <- as.numeric(hover_data$`get(input$stats_pca2d_x)`)
+ hover_data$`get(input$stats_pca2d_y)` <- as.numeric(hover_data$`get(input$stats_pca2d_y)`)
   
   #hover_data_test <<- hover_data
   

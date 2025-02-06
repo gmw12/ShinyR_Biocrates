@@ -68,7 +68,7 @@ df_no_ind <- read_table_try("data_no_indicators", params)
 df_plasma <- read_table('plasma', params)
 
 df_data_impute <- read_table('data_impute', params)
-
+df_spqc_factor <- read_table('SPQC_Factor', params)
 
 #-------------------------------------------------------------------------------------------
 #subset df_plasma where Sample.description contains SPQC
@@ -138,6 +138,19 @@ ggplot2::ggplot(data=test_df, ggplot2::aes(x=analyte, y=Mean, group=Sample)) +
         axis.text.x = ggplot2::element_blank()
   ) 
 
+
+ggplot(df_out, aes(x=get('PC1'), y=get('PC1'), color=x_gr )) +
+  geom_point(alpha=0.5, size=1) +
+  theme(legend.title=element_blank()) +
+  ggtitle("title") + 
+  ylab('PC1') +
+  xlab('PC2') +
+  scale_color_manual(values = rev(unique(color_list))) +
+  theme(plot.title = element_text(hjust = 0.5, size=8), 
+        axis.title = element_text(size=8, color="black"),
+        axis.text.x = element_text(size=8, angle = 90,  color="black"),
+        axis.text.y = element_text(size=8,  color="black"),
+  ) 
 
 #-------------------------------------------------------------------------------------------
 # count lines in all *.R files in the current directory
