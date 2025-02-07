@@ -11,26 +11,26 @@ create_qc_plots <- function(sesion, input, output, params){
   bg_qc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("QC", "QC_Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_qcbarplot.txt"), supervise = TRUE)
   bg_qc_box <- callr::r_bg(func = box_plot_bg, args = list("QC", "QC_Report", params), stderr = str_c(params$error_path, "//error_qcboxplot.txt"), supervise = TRUE)
   
-  bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", "Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
-  bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", "Report", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
+  #bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", "Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
+  #bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", "Report", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
   
-  bg_norm_line <- callr::r_bg(func = norm_line_bg, args = list(params), stderr = str_c(params$error_path, "//error_normlineplot.txt"), supervise = TRUE)
+  #bg_norm_line <- callr::r_bg(func = norm_line_bg, args = list(params), stderr = str_c(params$error_path, "//error_normlineplot.txt"), supervise = TRUE)
   
   
   bg_qc_box$wait()
   bg_qc_bar$wait()
-  bg_spqc_box$wait()
-  bg_spqc_bar$wait()
-  bg_norm_line$wait()
+  #bg_spqc_box$wait()
+  #bg_spqc_bar$wait()
+  #bg_norm_line$wait()
   
   print_stderr("error_qcbarplot.txt")
   print_stderr("error_qcboxplot.txt")
-  print_stderr("error_spqcbarplot.txt")
-  print_stderr("error_spqcboxplot.txt")
-  print_stderr("error_normlineplot.txt")
+  #print_stderr("error_spqcbarplot.txt")
+  #print_stderr("error_spqcboxplot.txt")
+  #print_stderr("error_normlineplot.txt")
   
   wait_cycle <- 0
-  while (!file.exists(str_c(params$plot_path,"SPQC_barplot.png"))) {
+  while (!file.exists(str_c(params$plot_path,"QC_boxplot.png"))) {
     if (wait_cycle < 10) {
       Sys.sleep(0.5)
       wait_cycle <- wait_cycle + 1
@@ -100,7 +100,10 @@ qc_grouped_plot_bg <- function(plot_title, table_name, input_qc_acc, params) {
     
   df <- read_table_try(table_name, params)
   
-  if (plot_title == "QC"){ 
+  if (plot_title == "QC"){
+    df_qc1 <- df |> dplyr::select(contains("QC1.Level"))
+    row_remove <- which(df_qc1 == 0.0010, arr.ind = TRUE)
+    df <- df[-row_remove,]
     test <- df |> dplyr::select(contains("Accuracy")) 
     lower_limit <- 100 - input_qc_acc
     upper_limit <- 100 + input_qc_acc
@@ -158,6 +161,10 @@ box_plot_bg <- function(plot_title, table_name, params) {
   df <- read_table_try(table_name, params)
   
   if (plot_title == "QC"){ 
+    df_qc1 <- df |> dplyr::select(contains("QC1.Level"))
+    row_remove <- which(df_qc1 == 0.0010, arr.ind = TRUE)
+    df <- df[-row_remove,]
+    test <- df |> dplyr::select(contains("Accuracy")) 
     df_box <- df |> dplyr::select(contains("Accuracy"))
     #remove "Accuracy" from column names
     colnames(df_box) <- gsub("Accuracy", "", colnames(df_box))

@@ -112,7 +112,7 @@ body <- dashboardBody(
                           br(),
                           numericInput("qc_acc", label = "QC %Accuracy Limit", value = 30, min = 0, max = 100),
                           br(),
-                          actionButton("spqc_qc_calc", label = "SPQC/QC Calc", width = 150,
+                          actionButton("qc_calc", label = "QC Calc", width = 150,
                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                           
                        )
@@ -158,27 +158,6 @@ body <- dashboardBody(
                                  column(width =12, offset =0,
                                         hr(),
                                         imageOutput("qc_box")
-                                 )
-                        ),
-                        
-                        tabPanel("SPQC Barplot",
-                                 column(width =12, offset =0,
-                                        hr(),
-                                        imageOutput("spqc_bar")
-                                 )
-                        ),
-                        
-                        tabPanel("SPQC Boxplot",
-                                 column(width =12, offset =0,
-                                        hr(),
-                                        imageOutput("spqc_box")
-                                 )
-                        ),
-                        
-                        tabPanel("SPQC Norm Factor",
-                                 column(width =12, offset =0,
-                                        hr(),
-                                        imageOutput("spqc_line")
                                  )
                         )
                         
@@ -229,6 +208,27 @@ body <- dashboardBody(
                                               hr(),
                                               tags$head(tags$style("#filter_material_data{color: blue; font-size: 12px;}")),
                                               DT::dataTableOutput("filter_material_table", width ='100%')
+                                       )
+                              ),
+                              
+                              tabPanel("SPQC Barplot",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              imageOutput("spqc_bar")
+                                       )
+                              ),
+                              
+                              tabPanel("SPQC Boxplot",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              imageOutput("spqc_box")
+                                       )
+                              ),
+                              
+                              tabPanel("SPQC Norm Factor",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              imageOutput("spqc_line")
                                        )
                               ),
                               

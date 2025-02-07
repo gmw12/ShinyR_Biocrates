@@ -151,16 +151,12 @@ shinyServer(function(session, input, output) {
   }) 
   
   #------------------------------------------------------------------------------------------------------  
-  observeEvent(input$spqc_qc_calc, {
+  observeEvent(input$qc_calc, {
     showModal(modalDialog("QC Calculations...", footer = NULL))
     
     cat(file = stderr(), "\n\n","spqc_qc_calc clicked...", "\n")
     
-    spqc_calc(session, input, output, params)
-    
     qc_calc(session, input, output, params)
-    
-    create_report_table(session, input, output, params, "Report")
     
     create_qc_table(session, input, output, params)
     
@@ -177,6 +173,8 @@ shinyServer(function(session, input, output) {
   observeEvent(input$filter_calc, {
     
     cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
+    
+    spqc_calc(session, input, output, params)
     
     material_calc(session, input, output, params)
     

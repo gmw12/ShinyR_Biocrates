@@ -494,10 +494,10 @@ qc_calc_bg <- function(params){
   source('Shiny_File.R')
   
   df <- read_table_try("data_impute", params)
-  df_report <- read_table_try("Report", params)
+  df_report_template <- read_table_try("Report_template", params)
   df_qc_info <- read_table_try("QC", params)
   
-  df_qc_report <- df_report[,1:2]
+  df_qc_report <- df_report_template[,1:2]
   
   qc_list <- c("QC1", "QC2", "QC3")
  
@@ -512,7 +512,7 @@ qc_calc_bg <- function(params){
     for (plate in plates) {
       df_plate <- df_qc[grep(plate, df_qc$Plate.bar.code),]
       df_plate <- df_plate[grep(qc, df_plate$Sample.identification),]
-      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report_template)+1):ncol(df_plate)]
       #set df_plate to numeric
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
       df_mean <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)

@@ -19,10 +19,10 @@ observe_buttons <- function(session, input , output) {
     runjs('document.getElementById("replace_lod").style.backgroundColor = "green";')
   })
   
-  observeEvent(input$spqc_qc_calc,{
-    runjs('document.getElementById("spqc_qc_calc").style.backgroundColor = "green";')
+  observeEvent(input$qc_calc,{
+    runjs('document.getElementById("qc_calc").style.backgroundColor = "green";')
   }) 
-  
+
   observeEvent(input$filter_calc,{
     runjs('document.getElementById("filter_calc").style.backgroundColor = "green";')
   }) 
