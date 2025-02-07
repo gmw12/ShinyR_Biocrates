@@ -174,17 +174,21 @@ body <- dashboardBody(
               column(width = 2,
                      fluidRow(
                        box(id = "sample_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
-                           selectInput(inputId = "material_select", label = h3("Select Materials for Data Output"),  choices = c("1", "2", "3"), 
+                           selectInput(inputId = "material_select", label = h4("Material for Data Output", style="color:blue"),  choices = c("1", "2", "3"), 
                                        selected = "1"),
                            hr(),
-                           tags$h3("Preprocess/Filter Data"),
+                           tags$h4("Normalize Data", style="color:blue"),
+                           selectInput(inputId = "norm_select", label = h4("Select Materials for Data Output"),  choices = c("None", "SPQC", "NIST", "GW"), 
+                                       selected = "None"),
+                           hr(),
+                           tags$h4("Filter Data", style="color:blue"),
                            checkboxInput("spqc_filter", label = "SPQC %CV Filter", value = FALSE),
                            numericInput("spqc_filter_value", label = "Max %CV", value = 30, min = 0, max = 100),
                            checkboxInput("missing_filter", label = "Max% <LOD values", value = FALSE),
                            numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
                            br(),
-                           br(),
-                           actionButton("filter_calc", label = "Preprocess Data", width = 150,
+                           hr(),
+                           actionButton("filter_calc", label = "Process Data", width = 150,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                            
                        )
@@ -198,15 +202,23 @@ body <- dashboardBody(
                               tabPanel("Data",
                                        column(width =12, offset =0,
                                               hr(),
-                                              tags$head(tags$style("#material_data{color: blue; font-size: 12px;}")),
+                                              tags$head(tags$style("#material_table{color: blue; font-size: 12px;}")),
                                               DT::dataTableOutput("material_table", width ='100%')
+                                       )
+                              ),
+                              
+                              tabPanel("Normalized Data",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              tags$head(tags$style("#material_table{color: blue; font-size: 12px;}")),
+                                              DT::dataTableOutput("norm_material_table", width ='100%')
                                        )
                               ),
                               
                               tabPanel("Filtered Data",
                                        column(width =12, offset =0,
                                               hr(),
-                                              tags$head(tags$style("#filter_material_data{color: blue; font-size: 12px;}")),
+                                              tags$head(tags$style("#filter_material_table{color: blue; font-size: 12px;}")),
                                               DT::dataTableOutput("filter_material_table", width ='100%')
                                        )
                               ),

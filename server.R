@@ -171,10 +171,13 @@ shinyServer(function(session, input, output) {
 
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$filter_calc, {
+    showModal(modalDialog("Processing data...", footer = NULL))
     
     cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
     
     spqc_calc(session, input, output, params)
+    
+    create_spqc_plots(sesion, input, output, params)
     
     material_calc(session, input, output, params)
     
@@ -185,7 +188,7 @@ shinyServer(function(session, input, output) {
     create_data_table(session, input, output, params, str_c("filtered_",params$material_select), "Samples_Filtered")
     
     cat(file = stderr(), "\n\n","material_calc clicked...end", "\n")
-    
+    removeModal()
   }) 
   
   

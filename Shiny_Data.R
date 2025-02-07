@@ -414,68 +414,6 @@ replace_lod_bg <- function(params){
 
 #---------------------------------------------------------------------
 
-spqc_calc <- function(session, input, output, params){
-  cat(file = stderr(), "Function spqc_calc...", "\n")
-  
-  bg_spqc_calc <- callr::r_bg(spqc_calc_bg, args = list(params), stderr = str_c(params$error_path, "//error_spqc_calc.txt"), supervise = TRUE)
-  bg_spqc_calc$wait()
-  print_stderr("error_spqc_calc.txt")
-  
-  cat(file = stderr(), "Function spqc_calc...end", "\n")
-}
-
-#---------------------------------------------------------------------
-
-spqc_calc_bg <- function(params){
-  cat(file = stderr(), "Function spqc_calc_bg...", "\n")
-  source('Shiny_File.R')
-  
-  df <- read_table_try("data_impute", params)
-  df_report <- read_table_try("Report_template", params)
-  df_spqc_mean <- df_report[,1:3]
-  
-  #subset of data with "SPQC" in Sample.description
-  df_spqc <- df[grep("SPQC", df$Sample.description),]
-  plates <- unique(df_spqc$Plate.bar.code)
-  materials <- unique(df_spqc$Material)
-  
-
-  for (material in materials) {
-    df_material <- df_spqc[grep(material, df_spqc$Material),]
-    df_material <- df_material[,(ncol(df_material)-nrow(df_report)+1):ncol(df_material)]
-    #set df_material to numeric
-    df_material <- as.data.frame(lapply(df_material, as.numeric))
-    df_mean <- round(colMeans(df_material, na.rm = TRUE), digits = 3)
-    #calc the %CV from columns of df_material
-    df_cv <- round(100 * (apply(df_material, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
-    df_report[stringr::str_c("Average ", material, " SPQC(uM)")] <- df_mean
-    df_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- df_cv
-    
-    #calc the sum intensity from each SPQC sample
-    for (plate in plates) {
-      df_material <- df_spqc[grep(material, df_spqc$Material),]
-      df_plate <- df_material[grep(plate, df_material$Plate.bar.code),]
-      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
-      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
-      df_spqc_mean[stringr::str_c("SPQC Mean ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
-    }
-  }
-
-  df_spqc_mean <- df_spqc_mean[,4:ncol(df_spqc_mean)]
-  total_mean <- rowMeans(df_spqc_mean, na.rm = TRUE)
-  
-  #divide each column in dfs_spqc_sum by total_sum
-  df_spqc_factor <- df_spqc_mean/total_mean
-  
-  write_table_try("Report", df_report, params)
-  write_table_try("SPQC_Factor", df_spqc_factor, params)
-  
-  cat(file = stderr(), "Function spqc_calc_bg...end", "\n")
-}
-
-
-#---------------------------------------------------------------------
-
 qc_calc <- function(session, input, output, params){
   cat(file = stderr(), "Function qc_calc...", "\n")
   
@@ -527,6 +465,71 @@ qc_calc_bg <- function(params){
   
   cat(file = stderr(), "Function qc_calc_bg...end", "\n")
 }
+
+
+
+#---------------------------------------------------------------------
+
+spqc_calc <- function(session, input, output, params){
+  cat(file = stderr(), "Function spqc_calc...", "\n")
+  
+  bg_spqc_calc <- callr::r_bg(spqc_calc_bg, args = list(params), stderr = str_c(params$error_path, "//error_spqc_calc.txt"), supervise = TRUE)
+  bg_spqc_calc$wait()
+  print_stderr("error_spqc_calc.txt")
+  
+  cat(file = stderr(), "Function spqc_calc...end", "\n")
+}
+
+#---------------------------------------------------------------------
+
+spqc_calc_bg <- function(params){
+  cat(file = stderr(), "Function spqc_calc_bg...", "\n")
+  source('Shiny_File.R')
+  
+  df <- read_table_try("data_impute", params)
+  df_report <- read_table_try("Report_template", params)
+  df_spqc_mean <- df_report[,1:3]
+  
+  #subset of data with "SPQC" in Sample.description
+  df_spqc <- df[grep("SPQC", df$Sample.description),]
+  plates <- unique(df_spqc$Plate.bar.code)
+  materials <- unique(df_spqc$Material)
+  
+  
+  for (material in materials) {
+    df_material <- df_spqc[grep(material, df_spqc$Material),]
+    df_material <- df_material[,(ncol(df_material)-nrow(df_report)+1):ncol(df_material)]
+    #set df_material to numeric
+    df_material <- as.data.frame(lapply(df_material, as.numeric))
+    df_mean <- round(colMeans(df_material, na.rm = TRUE), digits = 3)
+    #calc the %CV from columns of df_material
+    df_cv <- round(100 * (apply(df_material, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
+    df_report[stringr::str_c("Average ", material, " SPQC(uM)")] <- df_mean
+    df_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- df_cv
+    
+    #calc the sum intensity from each SPQC sample
+    for (plate in plates) {
+      df_material <- df_spqc[grep(material, df_spqc$Material),]
+      df_plate <- df_material[grep(plate, df_material$Plate.bar.code),]
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
+      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      df_spqc_mean[stringr::str_c("SPQC Mean ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+    }
+  }
+  
+  df_spqc_mean <- df_spqc_mean[,4:ncol(df_spqc_mean)]
+  total_mean <- rowMeans(df_spqc_mean, na.rm = TRUE)
+  
+  #divide each column in dfs_spqc_sum by total_sum
+  df_spqc_factor <- df_spqc_mean/total_mean
+  
+  write_table_try("Report", df_report, params)
+  write_table_try("SPQC_Factor", df_spqc_factor, params)
+  
+  cat(file = stderr(), "Function spqc_calc_bg...end", "\n")
+}
+
+
 
 #---------------------------------------------------------------------
 
