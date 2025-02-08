@@ -178,7 +178,7 @@ body <- dashboardBody(
                                        selected = "1"),
                            hr(),
                            tags$h4("Normalize Data", style="color:blue"),
-                           selectInput(inputId = "norm_select", label = h4("Select Materials for Data Output"),  choices = c("None", "SPQC", "NIST", "GW"), 
+                           selectInput(inputId = "norm_select", label = h4("Select Normalization Type"),  choices = c("None", "SPQC", "NIST", "GW"), 
                                        selected = "None"),
                            hr(),
                            tags$h4("Filter Data", style="color:blue"),
@@ -188,7 +188,7 @@ body <- dashboardBody(
                            numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
                            br(),
                            hr(),
-                           actionButton("filter_calc", label = "Process Data", width = 150,
+                           actionButton("process_material", label = "Process Data", width = 150,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                            
                        )

@@ -170,7 +170,7 @@ shinyServer(function(session, input, output) {
 
 
   #------------------------------------------------------------------------------------------------------  
-  observeEvent(input$filter_calc, {
+  observeEvent(input$process_material, {
     showModal(modalDialog("Processing data...", footer = NULL))
     
     cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
