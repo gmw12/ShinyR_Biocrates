@@ -23,8 +23,8 @@ observe_buttons <- function(session, input , output) {
     runjs('document.getElementById("qc_calc").style.backgroundColor = "green";')
   }) 
 
-  observeEvent(input$process_material,{
-    runjs('document.getElementById("process_material").style.backgroundColor = "green";')
+  observeEvent(input$process_data,{
+    runjs('document.getElementById("process_data").style.backgroundColor = "green";')
   }) 
   
   observeEvent(input$material_calc,{

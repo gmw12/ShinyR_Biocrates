@@ -188,7 +188,7 @@ body <- dashboardBody(
                            numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
                            br(),
                            hr(),
-                           actionButton("process_material", label = "Process Data", width = 150,
+                           actionButton("process_data", label = "Process Data", width = 150,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                            
                        )

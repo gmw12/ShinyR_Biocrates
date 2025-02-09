@@ -175,7 +175,7 @@ shinyServer(function(session, input, output) {
     
     cat(file = stderr(), "\n\n","material_calc clicked...", "\n")
     
-    spqc_calc(session, input, output, params)
+    process_data(session, input, output, params)
     
     create_spqc_plots(sesion, input, output, params)
     
