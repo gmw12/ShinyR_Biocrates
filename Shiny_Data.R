@@ -473,69 +473,159 @@ qc_calc_bg <- function(params){
 process_data <- function(session, input, output, params){
   cat(file = stderr(), "Function process_data...", "\n")
   
-  input_material_select <- input$material_select
+  params$material_select <- input$material_select
+  params$norm_select <- input$norm_select
   
-  process_data_calc <- callr::r_bg(process_data_bg, args = list(input_material_select, params), stderr = str_c(params$error_path, "//process_data_calc.txt"), supervise = TRUE)
+  #check if params$material_list exists
+  if (length(params$material_list) == 0) {
+    params$material_list <- input$material_select
+  }else{
+    params$material_list <- stringr::str_c(params$material_list, ",", input$material_select)
+  }
+  
+  process_data_calc <- callr::r_bg(process_data_bg, args = list(params), stderr = str_c(params$error_path, "//process_data_calc.txt"), supervise = TRUE)
   process_data_calc$wait()
   print_stderr("process_data_calc.txt")
+  
+  params <<- params
   
   cat(file = stderr(), "Function process_data...end", "\n")
 }
 
 #---------------------------------------------------------------------
 
-process_data_bg <- function(material, params){
+process_data_bg <- function(params){
   cat(file = stderr(), "Function process_data_bg...", "\n")
   source('Shiny_File.R')
+  source('Shiny_Data.R')
+  
+  material <- params$material_select
   
   df <- read_table_try("data_impute", params)
   df_report <- read_table_try("Report_template", params)
-  df_spqc_mean <- df_report[,1:3]
   
-  #subset of data with "SPQC" in Sample.description
-  df_spqc <- df[grep("SPQC", df$Sample.description),]
-  #list of plates
-  plates <- unique(df_spqc$Plate.bar.code)
+  df_material <- df[grep(params$material_select, df$Material),]
 
-  #subset of data with material
-  df_spqc_material <- df_spqc[grep(material, df_spqc$Material),]
-  #isolate data only
-  df_spqc_material <- df_spqc_material[,(ncol(df_spqc_material)-nrow(df_report)+1):ncol(df_spqc_material)]
+  #create table with material SPQC data for report
+  spqc_report(df, df_report, material, params)
   
-  #set df_material to numeric
-  df_spqc_material <- as.data.frame(lapply(df_spqc_material, as.numeric))
-  mean_df_spqc_material <- round(colMeans(df_spqc_material, na.rm = TRUE), digits = 3)
+  normalize_data(df, df_report, material, params)
   
-  #calc the %CV from columns of df_spqc_material
-  df_spqc_material_cv <- round(100 * (apply(df_spqc_material, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
-  df_report[stringr::str_c("Average ", material, " SPQC(uM)")] <- mean_df_spqc_material
-  df_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- df_spqc_material_cv
-    
-  #calc the sum intensity from each SPQC by plate
-  for (plate in plates) {
-    df_material <- df_spqc[grep(material, df_spqc$Material),]
-    df_plate <- df_material[grep(plate, df_material$Plate.bar.code),]
-    df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
-    df_plate <- as.data.frame(lapply(df_plate, as.numeric))
-    df_spqc_mean[stringr::str_c("SPQC Mean ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
-  }
-  
-  
-  df_spqc_mean <- df_spqc_mean[,4:ncol(df_spqc_mean)]
-  total_mean <- rowMeans(df_spqc_mean, na.rm = TRUE)
-  
-  #divide each column in dfs_spqc_sum by total_sum
-  df_spqc_factor <- df_spqc_mean/total_mean
-  
-  write_table_try("Report", df_report, params)
-  write_table_try("SPQC_Factor", df_spqc_factor, params)
-  write_table_try(stringr::str_c("SPQC_Mean_", material), df_spqc_mean, params)
+
   
   cat(file = stderr(), "Function process_data_bg...end", "\n")
 }
 
+#---------------------------------------------------------------------
+normalize_data <- function(df, df_report, material, params){
+  cat(file = stderr(), "Function normalize_data...", "\n")
+ 
+  if (params$norm_select != "None") {
+    df_norm <- df[grep(params$norm_select, df$Sample.description),]
+    df_norm_material <- df_norm[grep(material, df_norm$Material),]
+    df_norm_plate_mean <- df_report[,1:3]
+    
+    if(nrow(df_norm_material) > 0 ) {
+      df_norm <- df_norm_material
+    }
 
+    #isolate data only
+    df_norm_data <- df_norm[,(ncol(df_norm)-nrow(df_report)+1):ncol(df_norm)]
+    df_norm_data <- as.data.frame(lapply(df_norm_data, as.numeric))
+    mean_df_norm_data <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 3)
 
+    #list of plates
+    norm_plates <- unique(df_norm$Plate.bar.code)    
+    
+    #calc the meanintensity from each SPQC by plate
+    for (plate in norm_plates) {
+      df_material <- df_spqc[grep(material, df_spqc$Material),]
+      df_plate <- df_material[grep(plate, df_material$Plate.bar.code),]
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
+      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      df_norm_plate_mean[stringr::str_c(params$norm_select, " ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+    } 
+    
+    df_norm_plate_mean <- df_norm_plate_mean[,4:ncol(df_norm_plate_mean)]
+    total_mean <- rowMeans(df_norm_plate_mean, na.rm = TRUE)
+    
+    #divide each column in dfs_spqc_sum by total_sum
+    df_norm_factor <- df_norm_plate_mean/total_mean
+    
+    #normalize data on each plate
+    for(plate in norm_plates){
+      df_plate <- df[grep(plate, df$Plate.bar.code),]
+      df_plate <- df_plate[grep(material, df_plate$Material),]
+      df_info_plate <- df_plate[,1:(ncol(df_plate)-nrow(df_report))]
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
+      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      norm_factor <- df_norm_factor[[stringr::str_c(params$norm_select, " ", plate, " ", material)]]
+      #divide each row of df_plate by norm_factor
+      df_plate_norm <- sweep(df_plate, 2,  norm_factor, "/")
+      df_plate_norm <- round(df_plate_norm, digits = 3)
+      df_plate_norm <- cbind(df_info_plate, df_plate_norm)
+      
+      #if first pass through loop
+      if (plate == norm_plates[1]) {
+        df_final <- df_plate_norm
+      }else{
+        df_final <- rbind(df_final, df_plate_norm)
+      }
+      
+      write_table_try(stringr::str_c(params$norm_select, "_Norm_", material), df_final, params)
+      
+    }
+    
+    
+    
+    write_table_try(params$material_select, df_material, params)
+    write_table_try("Report", df_report, params)
+    write_table_try("SPQC_Factor", df_spqc_factor, params)
+    write_table_try(stringr::str_c("SPQC_Mean_", material), df_spqc_mean, params)
+    
+    write_table_try(material, df_material, params)
+  }
+  
+  
+  
+   
+  cat(file = stderr(), "Function normalize_data...end", "\n")
+}
+
+#---------------------------------------------------------------------
+spqc_report <- function(df, df_report, material, params){
+  cat(file = stderr(), "Function spqc_report...", "\n")
+  
+  df_spqc_report <- df_report[,1:3]
+  
+  #subset of data with "SPQC" in Sample.description
+  df_spqc <- df[grep("SPQC", df$Sample.description),]
+  
+  #subset of data with material
+  df_spqc_material <- df_spqc[grep(material, df_spqc$Material),]
+  
+  if(nrow(df_spqc_material) != 0){
+    #list of plates
+    spqc_plates <- unique(df_spqc_material$Plate.bar.code)
+    
+    #isolate data only
+    df_spqc_material <- df_spqc_material[,(ncol(df_spqc_material)-nrow(df_report)+1):ncol(df_spqc_material)]
+    
+    #set df_material to numeric
+    df_spqc_material <- as.data.frame(lapply(df_spqc_material, as.numeric))
+    mean_df_spqc_material <- round(colMeans(df_spqc_material, na.rm = TRUE), digits = 3)
+    
+    #calc the %CV from columns of df_spqc_material
+    df_spqc_material_cv <- round(100 * (apply(df_spqc_material, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
+    df_spqc_report[stringr::str_c("Average ", material, " SPQC(uM)")] <- mean_df_spqc_material
+    df_spqc_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- df_spqc_material_cv
+    
+    write_table_try(stringr::str_c("SPQC_Report_", material), df_spqc_report, params)
+    
+  }
+  
+  cat(file = stderr(), "Function spqc_report...end", "\n")
+}
 #---------------------------------------------------------------------
 
 material_calc <- function(session, input, output, params){

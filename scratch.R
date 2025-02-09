@@ -66,6 +66,7 @@ df_info <- read_table('data_info', params)
 df_data_start <- read_table('data_start', params)
 df_no_ind <- read_table_try("data_no_indicators", params)
 df_plasma <- read_table('plasma', params)
+df_norm <- read_table('SPQC_Norm_brain tissue', params)
 
 df_data_impute <- read_table('data_impute', params)
 df_spqc_factor <- read_table('SPQC_Factor', params)
