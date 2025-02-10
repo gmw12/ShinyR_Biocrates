@@ -179,13 +179,13 @@ shinyServer(function(session, input, output) {
     
     create_spqc_plots(sesion, input, output, params)
     
-    material_calc(session, input, output, params)
-    
     spqc_missing_filter(session, input, output, params)
     
     create_data_table(session, input, output, params, params$material_select, "Samples")
     
     create_data_table(session, input, output, params, str_c("filtered_",params$material_select), "Samples_Filtered")
+    
+    create_data_table(session, input, output, params, str_c("filtered_",params$material_select), "Norm_Samples")
     
     cat(file = stderr(), "\n\n","material_calc clicked...end", "\n")
     removeModal()

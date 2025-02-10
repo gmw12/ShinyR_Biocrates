@@ -210,7 +210,7 @@ body <- dashboardBody(
                               tabPanel("Normalized Data",
                                        column(width =12, offset =0,
                                               hr(),
-                                              tags$head(tags$style("#material_table{color: blue; font-size: 12px;}")),
+                                              tags$head(tags$style("#norm_material_table{color: blue; font-size: 12px;}")),
                                               DT::dataTableOutput("norm_material_table", width ='100%')
                                        )
                               ),

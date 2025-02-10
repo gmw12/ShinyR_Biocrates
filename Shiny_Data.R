@@ -510,9 +510,7 @@ process_data_bg <- function(params){
   spqc_report(df, df_report, material, params)
   
   normalize_data(df, df_report, material, params)
-  
 
-  
   cat(file = stderr(), "Function process_data_bg...end", "\n")
 }
 

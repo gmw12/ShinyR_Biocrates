@@ -26,6 +26,10 @@ create_data_table <- function(session, input, output, params, table_name, input_
     output$filter_material_table <- DT::renderDataTable(data_table_DT) 
   }
   
+  if (input_table == "Norm_Samples"){
+    output$norm_material_table <- DT::renderDataTable(data_table_DT) 
+  }
+  
   
   cat(file = stderr(), "Function create_data_table...end", "\n")
 }
