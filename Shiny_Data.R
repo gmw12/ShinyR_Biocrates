@@ -515,10 +515,10 @@ process_data_bg <- function(params){
   df_material <- df[grep(material, df$Material),]
   write_table_try(material, df_material, params)
   
-  #create table with material SPQC data for report
-  spqc_report(df, df_report, material, params)
-  
   normalize_data(df, df_report, material, params)
+  
+  #create table with material SPQC data for report
+  spqc_report(df_report, material, params)
 
   cat(file = stderr(), "Function process_data_bg...end", "\n")
 }
@@ -598,32 +598,47 @@ normalize_data <- function(df, df_report, material, params){
 }
 
 #---------------------------------------------------------------------
-spqc_report <- function(df, df_report, material, params){
+spqc_report <- function(df_report, material, params){
   cat(file = stderr(), "Function spqc_report...", "\n")
   
   df_spqc_report <- df_report[,1:3]
   
   #subset of data with "SPQC" in Sample.description
-  df_spqc <- df[grep("SPQC", df$Sample.description),]
+  if (params$norm_select != "None"){
+    df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", material), params)
+  }else {
+    df <- read_table_try(material, params)
+  }
   
-  #subset of data with material
-  df_spqc_material <- df_spqc[grep(material, df_spqc$Material),]
+  df <- df[grep("SPQC", df$Sample.description),]
   
-  if(nrow(df_spqc_material) != 0){
+  if(nrow(df) != 0){
     #list of plates
-    spqc_plates <- unique(df_spqc_material$Plate.bar.code)
+    spqc_plates <- unique(df$Plate.bar.code)
     
     #isolate data only
-    df_spqc_material <- df_spqc_material[,(ncol(df_spqc_material)-nrow(df_report)+1):ncol(df_spqc_material)]
+    df_all <- df[,(ncol(df)-nrow(df_report)+1):ncol(df)]
     
     #set df_material to numeric
-    df_spqc_material <- as.data.frame(lapply(df_spqc_material, as.numeric))
-    mean_df_spqc_material <- round(colMeans(df_spqc_material, na.rm = TRUE), digits = 3)
+    df_all <- as.data.frame(lapply(df_all, as.numeric))
+    mean_df_spqc_material <- round(colMeans(df_all, na.rm = TRUE), digits = 3)
     
     #calc the %CV from columns of df_spqc_material
-    df_spqc_material_cv <- round(100 * (apply(df_spqc_material, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
-    df_spqc_report[stringr::str_c("Average ", material, " SPQC(uM)")] <- mean_df_spqc_material
-    df_spqc_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- df_spqc_material_cv
+    cv_df_spqc_material <- round(100 * (apply(df_all, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
+    df_spqc_report[stringr::str_c("Mean ", material, " SPQC(uM)")] <- mean_df_spqc_material
+    df_spqc_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- cv_df_spqc_material
+    
+    for (plate in spqc_plates) {
+      df_plate <- df[grep(plate, df$Plate.bar.code),]
+      #isolate data only
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
+      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      mean_plate_df_spqc_material <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+      cv_plate_df_spqc_material <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
+      df_spqc_report[stringr::str_c("Mean ", plate, " ", material, " SPQC(uM)")] <- mean_plate_df_spqc_material
+      df_spqc_report[stringr::str_c("%CV ", plate, " ", material, " SPQC(uM)")] <- cv_plate_df_spqc_material
+    }
+    
     
     write_table_try(stringr::str_c("SPQC_Report_", material), df_spqc_report, params)
     

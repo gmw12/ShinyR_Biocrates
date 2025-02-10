@@ -82,20 +82,12 @@ qc_grouped_plot_bg <- function(plot_title, params) {
   }
   
   if (plot_title == "SPQC"){
-    df_report <- read_table_try("Report", params)
-    
-    if (params$norm_select != "None"){
-      df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", params$material_select), params)
-    }else {
-      df <- read_table_try(params$material_select, params)
-    }
-
-    df <- df[grep("SPQC", df$Sample.description),]
-    
-    
+    df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
     test <- df |> dplyr::select(contains("SPQC"))
     test <- test |> dplyr::select(contains("CV"))
-    test[test > input_qc_acc] <- 0
+    #replace na with 0
+    test[is.na(test)] <- 0
+    test[test > params$qc_acc] <- 0
     test[test > 0] <- 1
     lower_limit_text <- stringr::str_c("CV < ", params$qc_acc)
     upper_limit_text <- stringr::str_c("Accuracy > ", params$qc_acc)
