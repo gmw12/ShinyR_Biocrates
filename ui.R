@@ -102,16 +102,19 @@ body <- dashboardBody(
                        box(id = "qc_box", title = "Process Biocrates Data...", status = "primary", solidHeader = TRUE, collapsible = FALSE, align = "left", width = 12, height = 750,
                           br(),
                           br(),
-                          tags$h5("<LOD Imputation"),
+                          br(),
+                          tags$h4("Impute <LOD", style="color:blue"),
                           checkboxInput("fixed_lod", label = "Use Fixed LOD", value = FALSE),
                           actionButton("replace_lod", label = "Impute LOD", width = 150,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                           br(),
-                          hr(),
-                          tags$b("Process SPQC and QC data"),
                           br(),
+                          hr(),
+                          tags$h4("Process QC data", style="color:blue"),
                           numericInput("qc_acc", label = "QC %Accuracy Limit", value = 30, min = 0, max = 100),
                           br(),
+                          br(),
+                          hr(),
                           actionButton("qc_calc", label = "QC Calc", width = 150,
                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                           
@@ -124,8 +127,8 @@ body <- dashboardBody(
                        tabBox(id="process_data", width = 12, height = 750,
                         
                         tabPanel("Sample Data",
-                                 column(width =12, offset =0,
-                                        hr(),
+                            column(width =12, offset =0,
+                              hr(),      
                               tags$head(tags$style("#data_table{color: blue; font-size: 12px;}")),
                               DT::dataTableOutput("data_table", width ='100%')
                            )
@@ -188,7 +191,7 @@ body <- dashboardBody(
                            numericInput("missing_filter_value", label = "Max % <LOD", value = 50, min = 0, max = 100),
                            br(),
                            hr(),
-                           actionButton("process_data", label = "Process Data", width = 150,
+                           actionButton("process_material", label = "Process Data", width = 150,
                                         style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")
                            
                        )
@@ -237,7 +240,7 @@ body <- dashboardBody(
                                        )
                               ),
                               
-                              tabPanel("SPQC Norm Factor",
+                              tabPanel("Norm Factor",
                                        column(width =12, offset =0,
                                               hr(),
                                               imageOutput("spqc_line")

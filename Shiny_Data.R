@@ -417,6 +417,10 @@ replace_lod_bg <- function(params){
 qc_calc <- function(session, input, output, params){
   cat(file = stderr(), "Function qc_calc...", "\n")
   
+  params$qc_acc <- input$qc_acc
+  params$fixed_lod <- input$fixed_lod
+  params <<- params
+  
   bg_qc_calc <- callr::r_bg(qc_calc_bg, args = list(params), stderr = str_c(params$error_path, "//error_qc_calc.txt"), supervise = TRUE)
   bg_qc_calc$wait()
   print_stderr("error_qc_calc.txt")
@@ -475,6 +479,10 @@ process_data <- function(session, input, output, params){
   
   params$material_select <- input$material_select
   params$norm_select <- input$norm_select
+  params$spqc_filter <- input$spqc_filter
+  params$spqc_filter_value <- input$spqc_filter_value
+  params$missing_filter <- input$missing_filter
+  params$missing_filter_value <- input$missing_filter_value
   
   #check if params$material_list exists
   if (length(params$material_list) == 0) {
@@ -503,9 +511,10 @@ process_data_bg <- function(params){
   
   df <- read_table_try("data_impute", params)
   df_report <- read_table_try("Report_template", params)
-  
-  df_material <- df[grep(params$material_select, df$Material),]
 
+  df_material <- df[grep(material, df$Material),]
+  write_table_try(material, df_material, params)
+  
   #create table with material SPQC data for report
   spqc_report(df, df_report, material, params)
   
@@ -517,12 +526,15 @@ process_data_bg <- function(params){
 #---------------------------------------------------------------------
 normalize_data <- function(df, df_report, material, params){
   cat(file = stderr(), "Function normalize_data...", "\n")
- 
+  
+
   if (params$norm_select != "None") {
     df_norm <- df[grep(params$norm_select, df$Sample.description),]
     df_norm_material <- df_norm[grep(material, df_norm$Material),]
     df_norm_plate_mean <- df_report[,1:3]
+    df_norm_mean <- df_report[,1:3]
     
+    #incase normalizing on group that is not the same material
     if(nrow(df_norm_material) > 0 ) {
       df_norm <- df_norm_material
     }
@@ -530,15 +542,15 @@ normalize_data <- function(df, df_report, material, params){
     #isolate data only
     df_norm_data <- df_norm[,(ncol(df_norm)-nrow(df_report)+1):ncol(df_norm)]
     df_norm_data <- as.data.frame(lapply(df_norm_data, as.numeric))
-    mean_df_norm_data <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 3)
+    df_norm_mean[stringr::str_c("Mean ", params$norm_select, " ", material)] <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 3)
+    df_norm_mean[stringr::str_c("CV ", params$norm_select, " ", material)] <- round(100 * (apply(df_norm_data, 2, sd, na.rm = TRUE) / mean_df_norm_data), digits = 2)
 
     #list of plates
     norm_plates <- unique(df_norm$Plate.bar.code)    
     
-    #calc the meanintensity from each SPQC by plate
+    #calc the mean intensity from each SPQC by plate
     for (plate in norm_plates) {
-      df_material <- df_spqc[grep(material, df_spqc$Material),]
-      df_plate <- df_material[grep(plate, df_material$Plate.bar.code),]
+      df_plate <- df_norm[grep(plate, df_norm$Plate.bar.code),]
       df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
       df_norm_plate_mean[stringr::str_c(params$norm_select, " ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
@@ -570,18 +582,13 @@ normalize_data <- function(df, df_report, material, params){
         df_final <- rbind(df_final, df_plate_norm)
       }
       
-      write_table_try(stringr::str_c(params$norm_select, "_Norm_", material), df_final, params)
-      
     }
     
-    
-    
-    write_table_try(params$material_select, df_material, params)
+    write_table_try(stringr::str_c(params$norm_select, "_Norm_", material), df_final, params)
     write_table_try("Report", df_report, params)
-    write_table_try("SPQC_Factor", df_spqc_factor, params)
-    write_table_try(stringr::str_c("SPQC_Mean_", material), df_spqc_mean, params)
+    write_table_try(stringr::str_c(params$norm_select, "_Norm_Factor_", material), df_norm_factor, params)
+    write_table_try(stringr::str_c("Norm_Mean_", material), df_norm_mean, params)
     
-    write_table_try(material, df_material, params)
   }
   
   

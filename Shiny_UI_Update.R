@@ -113,6 +113,9 @@ ui_render_spqc_plots <- function(session, input, output) {
 update_widgets <- function(session, input, output, params) {
   cat(file = stderr(), "Function - update_widgets...", "\n")
   
+  updateNumericInput(session, "qc_acc", value = params$qc_acc)
+  updateCheckboxInput(session, "fixed_lod", value = params$fixed_lod) 
+  
   material_types <- as.list(strsplit(params$materials, ",")[[1]])
   updateSelectInput(session, "material_select", choices = material_types)
   
@@ -121,7 +124,12 @@ update_widgets <- function(session, input, output, params) {
     updateSelectInput(session, "material_select", selected = selected_materials)
   }
   
-  
+  updateSelectInput(session, "norm_select", selected = params$norm_select)
+  updateCheckboxInput(session, "spqc_filter", value = params$spqc_filter)
+  updateNumericInput(session, "spqc_filter_value", value = params$spqc_filter_value)
+  updateCheckboxInput(session, "missing_filter", value = params$missing_filter)
+  updateNumericInput(session, "missing_filter_value", value = params$missing_filter_value)
+
   updateTextInput(session, "file_prefix", value = params$file_prefix)
   
  cat(file = stderr(), "Function - update_widgets...end", "\n")
