@@ -91,19 +91,19 @@ ui_render_qc_plots <- function(session, input, output) {
 }
 
 #-------------------------------------------------------------------------------------------
-ui_render_spqc_plots <- function(session, input, output) {
+ui_render_spqc_plots <- function(session, input, output, params) {
   cat(file = stderr(), "function ui_render_qc_plots...", "\n")
 
   output$spqc_bar <- renderImage({
-    list(src = str_c(params$plot_path,"SPQC_barplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
+    list(src = str_c(params$plot_path,"SPQC_", params$material_select, "_barplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
   }, deleteFile = FALSE)
   
   output$spqc_box <- renderImage({
-    list(src = str_c(params$plot_path,"SPQC_boxplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
+    list(src = str_c(params$plot_path,"SPQC_", params$material_select, "_boxplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
   }, deleteFile = FALSE)
   
   output$spqc_line <- renderImage({
-    list(src = str_c(params$plot_path,"SPQC_factor_line_plot.png"), contentType = 'image/png', width = 1200, height = 600, alt = "this is alt text")
+    list(src = str_c(params$plot_path, params$material_select, "_Norm_factor_line_plot.png"), contentType = 'image/png', width = 1200, height = 600, alt = "this is alt text")
   }, deleteFile = FALSE)
   
   cat(file = stderr(), "function ui_render_qc_plots...end", "\n")

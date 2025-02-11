@@ -154,7 +154,7 @@ shinyServer(function(session, input, output) {
   observeEvent(input$qc_calc, {
     showModal(modalDialog("QC Calculations...", footer = NULL))
     
-    cat(file = stderr(), "\n\n","spqc_qc_calc clicked...", "\n")
+    cat(file = stderr(), "\n","qc_calc clicked...", "\n")
     
     qc_calc(session, input, output, params)
     
@@ -162,7 +162,7 @@ shinyServer(function(session, input, output) {
     
     create_qc_plots(sesion, input, output, params)
     
-    cat(file = stderr(), "\n\n","spqc_qc_calc clicked...end", "\n")
+    cat(file = stderr(), "\n","qc_calc clicked...end", "\n")
     removeModal()
     
     
@@ -183,7 +183,7 @@ shinyServer(function(session, input, output) {
     
     create_data_table(session, input, output, params, params$material_select, "Samples")
     
-    create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", material), "Norm_Samples")
+    #create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", material), "Norm_Samples")
     
     #create_data_table(session, input, output, params, str_c("filtered_",params$material_select), "Samples_Filtered")
     

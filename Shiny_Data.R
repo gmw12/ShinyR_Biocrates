@@ -542,7 +542,8 @@ normalize_data <- function(df, df_report, material, params){
     #isolate data only
     df_norm_data <- df_norm[,(ncol(df_norm)-nrow(df_report)+1):ncol(df_norm)]
     df_norm_data <- as.data.frame(lapply(df_norm_data, as.numeric))
-    df_norm_mean[stringr::str_c("Mean ", params$norm_select, " ", material)] <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 3)
+    mean_df_norm_data <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 3)
+    df_norm_mean[stringr::str_c("Mean ", params$norm_select, " ", material)] <- mean_df_norm_data
     df_norm_mean[stringr::str_c("CV ", params$norm_select, " ", material)] <- round(100 * (apply(df_norm_data, 2, sd, na.rm = TRUE) / mean_df_norm_data), digits = 2)
 
     #list of plates

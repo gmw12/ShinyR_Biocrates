@@ -31,32 +31,33 @@ create_qc_plots <- function(sesion, input, output, params){
 
 #------------------------------------------------------------------------------------------------------
 create_spqc_plots <- function(sesion, input, output, params){
-  cat(file = stderr(), "Function create_qc_plots", "\n")
+  cat(file = stderr(), "Function create_spqc_plots", "\n")
   showModal(modalDialog("Creating Plots...", footer = NULL))
   
-  bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", "Report", input_qc_acc, params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
-  bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", "Report", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
+  bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
+  bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
   bg_norm_line <- callr::r_bg(func = norm_line_bg, args = list(params), stderr = str_c(params$error_path, "//error_normlineplot.txt"), supervise = TRUE)
  
   bg_spqc_box$wait()
   bg_spqc_bar$wait()
-  bg_norm_line$wait()
+  #bg_norm_line$wait()
   
   print_stderr("error_spqcbarplot.txt")
   print_stderr("error_spqcboxplot.txt")
   print_stderr("error_normlineplot.txt")
   
   wait_cycle <- 0
-  while (!file.exists(str_c(params$plot_path,"SPQC_barplot.png"))) {
+  
+  while (!file.exists(stringr::str_c(params$plot_path, "SPQC_", params$material_select, "_barplot.png"))) {
     if (wait_cycle < 10) {
       Sys.sleep(0.5)
       wait_cycle <- wait_cycle + 1
     }
   }
   
-  ui_render_spqc_plots(session, input, output)
+  ui_render_spqc_plots(session, input, output, params)
   
-  cat(file = stderr(), "create_qc_plots...end", "\n")
+  cat(file = stderr(), "create_spqc_plots...end", "\n")
   removeModal()
 }
 
@@ -65,7 +66,6 @@ qc_grouped_plot_bg <- function(plot_title, params) {
   cat(file = stderr(), stringr::str_c("function qc_grouped_plot_bg...."), "\n")
   source('Shiny_File.R')
     
-  
   
   if (plot_title == "QC"){
     df <- read_table_try("QC_Report", params)
@@ -82,7 +82,7 @@ qc_grouped_plot_bg <- function(plot_title, params) {
   }
   
   if (plot_title == "SPQC"){
-    df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
+    df <- read_table_try(stringr::str_c("SPQC_Report_", params$material_select), params)
     test <- df |> dplyr::select(contains("SPQC"))
     test <- test |> dplyr::select(contains("CV"))
     #replace na with 0
@@ -94,19 +94,21 @@ qc_grouped_plot_bg <- function(plot_title, params) {
   }
   
   
+  
   good <- colSums(test)
   bad <- nrow(test) - good
   
   data_plot = data.frame(matrix(vector(), ncol(test)*2, 3,
                          dimnames=list(c(), c("Sample", "QC", "Count"))),
                   stringsAsFactors=F)
+  
   colnames(test) <- gsub("Accuracy", "", colnames(test))
   data_plot$Sample <- c(colnames(test), colnames(test))
   data_plot$Count <- c(good, bad)
   data_plot$QC <- c(rep(lower_limit_text, ncol(test)), rep(upper_limit_text, ncol(test)))
   
   
-  file_name <- stringr::str_c(params$plot_path, plot_title, "_barplot.png")
+  file_name <- stringr::str_c(params$plot_path, plot_title, "_", params$material_select, "_barplot.png")
   plot_title <- stringr::str_c(plot_title, " Barplot")
   
   # Grouped
@@ -124,14 +126,13 @@ qc_grouped_plot_bg <- function(plot_title, params) {
 
 
 #Box plot-------------------------------------------------
-box_plot_bg <- function(plot_title, table_name, params) {
+box_plot_bg <- function(plot_title, params) {
   cat(file = stderr(), "Function box_plot_bg", "\n")
   
   source("Shiny_File.R")
   
-  df <- read_table_try(table_name, params)
-  
   if (plot_title == "QC"){ 
+    df <- read_table_try("QC_Report", params)
     df_qc1 <- df |> dplyr::select(contains("QC1.Level"))
     row_remove <- which(df_qc1 == 0.0010, arr.ind = TRUE)
     df <- df[-row_remove,]
@@ -146,19 +147,22 @@ box_plot_bg <- function(plot_title, table_name, params) {
   
   
   if (plot_title == "SPQC"){ 
+    df <- read_table_try(stringr::str_c("SPQC_Report_",params$material_select), params)
     df_box <- df |> dplyr::select(contains("SPQC"))
     df_box <- df_box |> dplyr::select(contains("CV"))
     #colnames(df_box) <- gsub("X", "", colnames(df_box))
     df_box_wide <- tidyr::pivot_longer(df_box, cols = colnames(df_box), names_to = "Sample", 
                                 values_to = "Stat")
+    df_box_wide$Sample <- gsub("X.CV.", "", df_box_wide$Sample)
+    df_box_wide$Sample <- gsub("SPQC.uM.", "", df_box_wide$Sample)
     x_name <- "CV"
   }
   
   df_box <- df_box |>  dplyr::mutate(across(!where(is.numeric), as.numeric))
   
 
-  file_name <- stringr::str_c(params$plot_path, plot_title, "_boxplot.png")
-  plottitle <- stringr::str_c(plot_title, " Boxplot")
+  file_name <- stringr::str_c(params$plot_path, plot_title,"_", params$material_select, "_boxplot.png")
+  plottitle <- stringr::str_c(plot_title, " ", params$material_select, " Boxplot")
   
   
   #create color_list length of ncol df_acc
@@ -202,14 +206,18 @@ norm_line_bg <- function(params) {
   cat(file = stderr(), stringr::str_c("function norm_line_bg...."), "\n")
   source('Shiny_File.R')
   
-  df_spqc_factor <- read_table_try("SPQC_Factor", params)
+  df_spqc_factor <- read_table_try(stringr::str_c(params$norm_select, "_Norm_Factor_", params$material_select), params)
   df_report <- read_table_try("Report", params)
   
   colnames(df_spqc_factor) <- gsub("SPQC.Mean.", "", colnames(df_spqc_factor))
   df_spqc_factor$analyte <- df_report$Name
   test_df <- tidyr::pivot_longer(df_spqc_factor, cols = colnames(df_spqc_factor)[1:(ncol(df_spqc_factor)-1)], names_to = "Sample", values_to = "Mean")
+  test_df$Sample <- gsub(gsub(" ", ".", params$material_select), "", test_df$Sample)
+  test_df$Sample <- gsub(params$norm_select, "", test_df$Sample)
+  #remove trailing and leading periods
+  test_df$Sample <- gsub("^\\.|\\.$", "", test_df$Sample)
   
-  file_name <- stringr::str_c(params$plot_path, "SPQC_factor_line_plot.png")
+  file_name <- stringr::str_c(params$plot_path, params$material_select, "_Norm_factor_line_plot.png")
   
   
   if (params$data_source == "BileAcid") {
@@ -217,7 +225,7 @@ norm_line_bg <- function(params) {
       ggplot2::geom_line(ggplot2::aes(color=Sample))+
       ggplot2::theme_classic()+
       ggplot2::geom_point(ggplot2::aes(color=Sample)) +
-      ggplot2::ggtitle("Normalization Factors by Plate") + 
+      ggplot2::ggtitle(stringr::str_c(params$material_select, " Normalization Factors by Plate")) + 
       #ggplot2::xlab(NULL) +
       ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, size=12), 
                      axis.title = ggplot2::element_text(size=8, color="black"),
@@ -231,7 +239,7 @@ norm_line_bg <- function(params) {
       ggplot2::geom_line(ggplot2::aes(color=Sample))+
       ggplot2::theme_classic()+
       ggplot2::geom_point(ggplot2::aes(color=Sample), size=1) +
-      ggplot2::ggtitle("Normalization Factors by Plate") + 
+      ggplot2::ggtitle(stringr::str_c(params$material_select, " Normalization Factors by Plate")) + 
       #ggplot2::xlab(NULL) +
       ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5, size=12), 
                      axis.title = ggplot2::element_text(size=8, color="black"),
