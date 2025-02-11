@@ -173,21 +173,21 @@ shinyServer(function(session, input, output) {
   observeEvent(input$process_material, {
     showModal(modalDialog("Processing data...", footer = NULL))
     
-    cat(file = stderr(), "\n","material_calc clicked...", "\n")
+    cat(file = stderr(), "\n","process_material clicked...", "\n")
     
     process_data(session, input, output, params)
     
     create_spqc_plots(sesion, input, output, params)
     
-    #spqc_missing_filter(session, input, output, params)
+    spqc_missing_filter(session, input, output, params)
     
     create_data_table(session, input, output, params, params$material_select, "Samples")
     
-    #create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", material), "Norm_Samples")
+    create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", params$material_select), "Norm_Samples")
     
     #create_data_table(session, input, output, params, str_c("filtered_",params$material_select), "Samples_Filtered")
     
-    cat(file = stderr(), "\n\n","material_calc clicked...end", "\n")
+    cat(file = stderr(), "\n\n","process_material clicked...end", "\n")
     removeModal()
   }) 
   

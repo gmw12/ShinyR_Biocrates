@@ -79,6 +79,7 @@ qc_grouped_plot_bg <- function(plot_title, params) {
     test[test > 0] <- 1
     lower_limit_text <- stringr::str_c("Accuracy ", lower_limit, "-", upper_limit)
     upper_limit_text <- stringr::str_c("Accuracy Outside Range")
+    file_name <- stringr::str_c(params$plot_path, plot_title, "_barplot.png")
   }
   
   if (plot_title == "SPQC"){
@@ -91,6 +92,7 @@ qc_grouped_plot_bg <- function(plot_title, params) {
     test[test > 0] <- 1
     lower_limit_text <- stringr::str_c("CV < ", params$qc_acc)
     upper_limit_text <- stringr::str_c("Accuracy > ", params$qc_acc)
+    file_name <- stringr::str_c(params$plot_path, plot_title, "_", params$material_select, "_barplot.png")
   }
   
   
@@ -107,8 +109,6 @@ qc_grouped_plot_bg <- function(plot_title, params) {
   data_plot$Count <- c(good, bad)
   data_plot$QC <- c(rep(lower_limit_text, ncol(test)), rep(upper_limit_text, ncol(test)))
   
-  
-  file_name <- stringr::str_c(params$plot_path, plot_title, "_", params$material_select, "_barplot.png")
   plot_title <- stringr::str_c(plot_title, " Barplot")
   
   # Grouped
@@ -143,6 +143,7 @@ box_plot_bg <- function(plot_title, params) {
     df_box_wide <- tidyr::pivot_longer(df_box, cols = colnames(df_box), names_to = "Sample", 
                                 values_to = "Stat")
     x_name <- "Accuracy"
+    file_name <- stringr::str_c(params$plot_path, plot_title, "_boxplot.png")
     }
   
   
@@ -156,32 +157,16 @@ box_plot_bg <- function(plot_title, params) {
     df_box_wide$Sample <- gsub("X.CV.", "", df_box_wide$Sample)
     df_box_wide$Sample <- gsub("SPQC.uM.", "", df_box_wide$Sample)
     x_name <- "CV"
+    file_name <- stringr::str_c(params$plot_path, plot_title,"_", params$material_select, "_boxplot.png")
   }
   
   df_box <- df_box |>  dplyr::mutate(across(!where(is.numeric), as.numeric))
   
 
-  file_name <- stringr::str_c(params$plot_path, plot_title,"_", params$material_select, "_boxplot.png")
   plottitle <- stringr::str_c(plot_title, " ", params$material_select, " Boxplot")
-  
   
   #create color_list length of ncol df_acc
   color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow")
-  
-  # png(filename = file_name, width = 800, height = 600)
-  # graphics::boxplot(df_box, 
-  #                   col = color_list, 
-  #                   notch = TRUE, 
-  #                   boxwex = 0.8,
-  #                   ylab = colnames(df_box)[1],
-  #                   main = c(plottitle),
-  #                   axes = TRUE,
-  #                   horizontal = TRUE,
-  #                   las = 1,
-  #                   graphics::par(mar = c(2,15,4,1))) #bottom, left, top, right
-  # dev.off()
-  
-
   
   ggplot2::ggplot(df_box_wide, ggplot2::aes(x=as.factor(Sample), y=Stat, fill = Sample)) + 
     ggplot2::geom_boxplot(alpha=0.2) +

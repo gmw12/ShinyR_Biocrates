@@ -25,7 +25,7 @@ set_user <- function() {
       site_user <<- "dpmsr"
       python_path <<- "/home/user/anaconda3/envs/python38/bin/python3"
     }else if (Sys.info()["nodename"] == "Gregorys-MBP.wired.duke.local" |Sys.info()["nodename"] == "gregorys-mbp.lan" | Sys.info()["nodename"] == "mac.lan" | Sys.info()["nodename"] == "Gregorys-MacBook-Pro.local" ) {
-      volumes <<- c(dd = '/Users/gregwaitt/Cloud-Drive/R/ShinyR_Biocrates', dd2 = '/Users/gregwaitt/Cloud-Drive/R', dc = '/mnt/RawData', wd = '.', Home = fs::path_home(), getVolumes()())
+      volumes <<- c(dd = '/Users/gregwaitt/R/ShinyR_Biocrates', dd2 = '/Users/gregwaitt/R', dc = '/mnt/RawData', wd = '.', Home = fs::path_home(), getVolumes()())
       site_user <<- "dpmsr"
       python_path <<- "/home/user/anaconda3/envs/python38/bin/python3"
     }else{
