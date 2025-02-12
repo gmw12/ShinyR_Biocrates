@@ -524,7 +524,7 @@ process_data_bg <- function(params){
   normalize_data(df, df_report, material, params)
   
   #create table with material SPQC data for report
-  spqc_report(df_report, material, params)
+  spqc_report(df_report, params)
 
   cat(file = stderr(), "Function process_data_bg...end", "\n")
 }
@@ -533,7 +533,6 @@ process_data_bg <- function(params){
 normalize_data <- function(df, df_report, material, params){
   cat(file = stderr(), "Function normalize_data...", "\n")
   
-
   if (params$norm_select != "None") {
     df_norm <- df[grep(params$norm_select, df$Sample.description),]
     df_norm_material <- df_norm[grep(material, df_norm$Material),]
@@ -597,18 +596,15 @@ normalize_data <- function(df, df_report, material, params){
     write_table_try(stringr::str_c("Norm_Mean_", material), df_norm_mean, params)
     
   }
-  
-  
-  
    
   cat(file = stderr(), "Function normalize_data...end", "\n")
 }
 
 #---------------------------------------------------------------------
-spqc_report <- function(df_report, material, params){
+spqc_report <- function(df_report, params){
   cat(file = stderr(), "Function spqc_report...", "\n")
   
-  if(params$sources == "BileAcid"){
+  if(params$data_source == "BileAcid"){
     df_spqc_report <- df_report[,1:3]
   }else {
     df_spqc_report <- df_report[,1:5]
@@ -617,9 +613,9 @@ spqc_report <- function(df_report, material, params){
   
   #subset of data with "SPQC" in Sample.description
   if (params$norm_select != "None"){
-    df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", material), params)
+    df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", params$material_select), params)
   }else {
-    df <- read_table_try(material, params)
+    df <- read_table_try(params$material_select, params)
   }
   
   df <- df[grep("SPQC", df$Sample.description),]
@@ -637,8 +633,8 @@ spqc_report <- function(df_report, material, params){
     
     #calc the %CV from columns of df_spqc_material
     cv_df_spqc_material <- round(100 * (apply(df_all, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
-    df_spqc_report[stringr::str_c("Mean ", material, " SPQC(uM)")] <- mean_df_spqc_material
-    df_spqc_report[stringr::str_c("%CV ", material, " SPQC(uM)")] <- cv_df_spqc_material
+    df_spqc_report[stringr::str_c("Mean ", params$material_select, " SPQC(uM)")] <- mean_df_spqc_material
+    df_spqc_report[stringr::str_c("%CV ", params$material_select, " SPQC(uM)")] <- cv_df_spqc_material
     
     for (plate in spqc_plates) {
       df_plate <- df[grep(plate, df$Plate.bar.code),]
@@ -647,12 +643,12 @@ spqc_report <- function(df_report, material, params){
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
       mean_plate_df_spqc_material <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
       cv_plate_df_spqc_material <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
-      df_spqc_report[stringr::str_c("Mean ", plate, " ", material, " SPQC(uM)")] <- mean_plate_df_spqc_material
-      df_spqc_report[stringr::str_c("%CV ", plate, " ", material, " SPQC(uM)")] <- cv_plate_df_spqc_material
+      df_spqc_report[stringr::str_c("Mean ", plate, " ", params$material_select, " SPQC(uM)")] <- mean_plate_df_spqc_material
+      df_spqc_report[stringr::str_c("%CV ", plate, " ", params$material_select, " SPQC(uM)")] <- cv_plate_df_spqc_material
     }
     
     
-    write_table_try(stringr::str_c("SPQC_Report_", material), df_spqc_report, params)
+    write_table_try(stringr::str_c("SPQC_Report_", params$material_select), df_spqc_report, params)
     
   }
   
@@ -664,12 +660,12 @@ spqc_report <- function(df_report, material, params){
 spqc_missing_filter <- function(session, input, output, params){
   cat(file = stderr(), "Function spqc_filter...", "\n")
 
-  bg_spqc_missing_filter <- callr::r_bg(spqc_missing_filter_bg, args = list(params), stderr = str_c(params$error_path, "//error_spqc_missing_filter.txt"), supervise = TRUE)
+  bg_spqc_missing_filter <- callr::r_bg(spqc_missing_filter_bg, args = list(params, use_norm=FALSE), stderr = str_c(params$error_path, "//error_spqc_missing_filter.txt"), supervise = TRUE)
   bg_spqc_missing_filter$wait()
   print_stderr("error_spqc_missing_filter.txt")
   
   if (params$norm_select != "None"){
-    bg_spqc_missing_filter_norm <- callr::r_bg(spqc_missing_filter_bg, args = list(params), stderr = str_c(params$error_path, "//error_spqc_missing_filter_norm.txt"), supervise = TRUE)
+    bg_spqc_missing_filter_norm <- callr::r_bg(spqc_missing_filter_bg, args = list(params, use_norm=TRUE), stderr = str_c(params$error_path, "//error_spqc_missing_filter_norm.txt"), supervise = TRUE)
     bg_spqc_missing_filter_norm$wait()
     print_stderr("error_spqc_missing_filter_norm.txt")
 }
@@ -680,7 +676,7 @@ spqc_missing_filter <- function(session, input, output, params){
 
 #---------------------------------------------------------------------
 
-spqc_missing_filter_bg <- function(params){
+spqc_missing_filter_bg <- function(params, use_norm){
   cat(file = stderr(), "Function spqc_missing_filter_bg...", "\n")
   source('Shiny_File.R')  
 
@@ -691,7 +687,7 @@ spqc_missing_filter_bg <- function(params){
   high_cv_analytes <- c()
   high_LOD_analytes <- c()
   
-  if (params$norm_select != "None"){
+  if (use_norm){
     df_material <- read_table_try(stringr::str_c(params$norm_select,"_Norm_", params$material_select), params)
   }else {
     df_material <- read_table_try(params$material_select, params)
@@ -699,19 +695,11 @@ spqc_missing_filter_bg <- function(params){
   
     
   if (params$spqc_filter) {
-    #from df_report find columns that contain "SPQC"
     cv_col <- grep("CV", colnames(df_report))[1]
     high_cv <- which(df_report[cv_col] > params$spqc_filter_value)
     high_cv_analytes <- df_report$R_colnames[high_cv]
-    
-    if (length(common_cols > 0)) {
-      #find rows in df_report[common_cols] that are higer than 30
-
-    }else{
-      cat(file = stderr(), "No common columns found", "\n")
-    }
   }
-    
+        
   if (params$missing_filter) {
     #filter df_start for material in Materials
     df_material_start <- df_start[grep(params$material_select, df_start$Material),]
@@ -719,7 +707,7 @@ spqc_missing_filter_bg <- function(params){
     #count the number of times "LOD" appears in each column of df_material_start
     lod_count <- apply(df_material_start, 2, function(x) sum(grepl("LOD", x)))
     lod_count <- round(lod_count/nrow(df_material_start)*100,2)
-    lod_column <- which(lod_count > input_missing_filter_value)
+    lod_column <- which(lod_count > params$missing_filter_value)
     high_LOD_analytes <- df_report$R_colnames[lod_column]
   }
     
@@ -730,8 +718,13 @@ spqc_missing_filter_bg <- function(params){
   if (length(analytes_to_remove) > 0) {
     df_material <- df_material[,-which(colnames(df_material) %in% analytes_to_remove)]
   }
-    
-  table_name <- stringr::str_c("filtered_", params$material_select)
+  
+  if (use_norm){
+    table_name <- stringr::str_c(params$norm_select, "_Filtered_Norm_", params$material_select)
+  }else{
+    table_name <- stringr::str_c("Filtered_", params$material_select)
+  }  
+  
   write_table_try(table_name, df_material, params)
 
   cat(file = stderr(), "Function spqc_missing_filter_bg...end", "\n")
@@ -765,7 +758,7 @@ explore_start_bg <- function(params, input_material_explore, input_data_type){
   if (input_data_type == 1) {
     table_name <- input_material_explore
   } else {
-    table_name <- stringr::str_c("filtered_", input_material_explore)
+    table_name <- stringr::str_c("Filtered_", input_material_explore)
   }
   
   df <- read_table_try(table_name, params)

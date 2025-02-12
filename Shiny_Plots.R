@@ -247,9 +247,17 @@ interactive_pca2d <- function(session, input, output, params) {
   cat(file = stderr(), "interactive_pca2d..." , "\n")
   
   if(input$data_type == 1){
-    table_name <- input$material_select
+    if(input$norm_option == 1){
+      table_name <- input$material_select
+    }else{
+      table_name <- stringr::str_c(params$norm_select, "_Norm_", params$material_select)
+    }
   }else{
-    table_name <- stringr::str_c("filtered_", input$material_select)  
+    if(input$norm_option == 1){
+      table_name <- stringr::str_c("Filtered_", params$material_select)  
+    }else{
+      table_name <- stringr::str_c(params$norm_select, "_Filtered_Norm_", params$material_select)  
+    }
   }
   
  cat(file = stderr(), str_c("table name = ", table_name), "\n")  

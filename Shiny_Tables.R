@@ -245,7 +245,7 @@ create_explore_table_bg <- function(params, input_material_explore, input_data_t
   if (input_data_type == 1) {
     table_name <- input_material_explore
   } else {
-    table_name <- stringr::str_c("filtered_", input_material_explore)
+    table_name <- stringr::str_c("Filtered_", input_material_explore)
   }
   
   df <- read_table_try(table_name, params)

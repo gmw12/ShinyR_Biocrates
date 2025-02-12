@@ -185,7 +185,11 @@ shinyServer(function(session, input, output) {
     
     create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", params$material_select), "Norm_Samples")
     
-    #create_data_table(session, input, output, params, str_c("filtered_",params$material_select), "Samples_Filtered")
+    if (input$norm_select != "None") {
+      create_data_table(session, input, output, params, str_c(params$norm_select, "_Filtered_Norm_",params$material_select), "Samples_Filtered")
+    } else {
+      create_data_table(session, input, output, params, str_c("Filtered_",params$material_select), "Samples_Filtered")
+    }
     
     cat(file = stderr(), "\n\n","process_material clicked...end", "\n")
     removeModal()
