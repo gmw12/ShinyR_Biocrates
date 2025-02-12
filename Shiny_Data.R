@@ -538,7 +538,15 @@ normalize_data <- function(df, df_report, material, params){
   
   if (params$norm_select != "None") {
     df_norm <- df[grep(params$norm_select, df$Sample.description),]
-    df_norm_material <- df_norm[grep(material, df_norm$Material),]
+    #if using anything but SPQC, the material could be different
+    if(params$norm_select == "SPQC") {
+      df_norm_material <- df_norm[grep(material, df_norm$Material),]
+    }else {
+      df_norm_material <- df_norm
+    }
+    
+    norm_material <- unique(df_norm_material$Material)
+    
     df_norm_plate_mean <- df_report[,1:3]
     df_norm_mean <- df_report[,1:3]
     
@@ -575,6 +583,11 @@ normalize_data <- function(df, df_report, material, params){
     for(plate in norm_plates){
       df_plate <- df[grep(plate, df$Plate.bar.code),]
       df_plate <- df_plate[grep(material, df_plate$Material),]
+      #add NIST and Golden West data since could be different material
+      if(material != norm_material) {
+        df_plate <- rbind(df_plate, df_norm_material)
+        df_plate <- df_plate[grep(plate, df_plate$Plate.bar.code),]
+      }
       df_info_plate <- df_plate[,1:(ncol(df_plate)-nrow(df_report))]
       df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))

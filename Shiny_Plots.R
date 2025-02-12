@@ -166,7 +166,7 @@ box_plot_bg <- function(plot_title, params) {
   plottitle <- stringr::str_c(plot_title, " ", params$material_select, " Boxplot")
   
   #create color_list length of ncol df_acc
-  color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow")
+  color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow", "pink", "grey", "lightblue", "green", "darkred", "darkblue", "darkgreen", "purple", "darkorange", "hotpink", "maroon", "darkcyan", "darkmagenta", "yellow4", "maroon4", "darkgrey", "skyblue", "darkgreen", "gold", "khaki")
   
   ggplot2::ggplot(df_box_wide, ggplot2::aes(x=as.factor(Sample), y=Stat, fill = Sample)) + 
     ggplot2::geom_boxplot(alpha=0.2) +
@@ -268,11 +268,19 @@ interactive_pca2d <- function(session, input, output, params) {
  
  df$Sample.description[grep("SPQC", df$Sample.description)] <- "SPQC"
  df$Sample.description[grep("NIST", df$Sample.description)] <- "NIST"
- df$Sample.description[grep("Golden West", df$Sample.description)] <- "GW"
- match_list <- c("SPQC", "NIST", "Golden West")
+ df$Sample.description[grep("Golden West", df$Sample.description)] <- "Golden_West"
+ match_list <- c("SPQC", "NIST", "Golden_West")
  #df$Sample.description[grep("XXXX", df$Sample.description)] <- "Sample"
  df$Sample.description[-grep(paste(match_list, collapse="|"), df$Sample.description)] <- "Sample"
 
+ if(input$remove_gw_nist) {
+   if (any(grepl("Golden_West", df$Sample.description))) {
+     df <- df[-grep("Golden_West", df$Sample.description),]
+   }
+   if (any(grepl("NIST", df$Sample.description))) {
+     df <- df[-grep("NIST", df$Sample.description),]
+   }
+ }
  
  if(input$pca_by_plate) {
   df$Sample.description <- stringr::str_c(df$Sample.description, "_", df$Submission.name)    
@@ -289,7 +297,7 @@ interactive_pca2d <- function(session, input, output, params) {
  
  namex <- stringr::str_c(df$Sample.bar.code, "_", df$Sample.description, "_", df$Submission.name)
  
- color_list <- c("red", "blue", "darkgreen", "purple", "orange", "black", "brown", "cyan", "magenta", "yellow", "green", "pink", "grey", "lightblue")
+ color_list <- c("red", "blue", "orange", "purple", "darkgreen", "black", "brown", "cyan", "magenta", "yellow", "green", "pink", "grey", "lightblue", "darkred", "darkblue", "lightgreen", "orchid", "darkorange", "maroon", "yellow4", "darkcyan", "darkmagenta", "yellow2", "royalblue", "purple1", "skyblue", "deeppink")
  color_list <- color_list[1:length(unique(df$Sample.description))]
  
  x_pca <- prcomp(df_plot[,-1], scale=TRUE)
@@ -311,7 +319,6 @@ interactive_pca2d <- function(session, input, output, params) {
  hover_data$`get(input$stats_pca2d_y)` <- as.numeric(hover_data$`get(input$stats_pca2d_y)`)
   
   #hover_data_test <<- hover_data
-  
   create_stats_pca2d <- reactive({
     ggplot(df_out, aes(x=get(input$stats_pca2d_x), y=get(input$stats_pca2d_y), color=x_gr )) +
       geom_point(alpha=0.5, size=input$stats_pca2d_dot_size) +
@@ -333,8 +340,8 @@ interactive_pca2d <- function(session, input, output, params) {
   })
   
   output$download_stats_pca2d <- downloadHandler(
-    filename = function(){
-      str_c("stats_pca2d_", comp_name, ".png", collapse = " ")
+    file = function(){
+      stringr::str_c("stats_pca2d_", params$material_select, ".png", collapse = " ")
     },
     content = function(file){
       req(create_stats_pca2d())
