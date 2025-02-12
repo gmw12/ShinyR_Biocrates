@@ -181,15 +181,7 @@ shinyServer(function(session, input, output) {
     
     spqc_missing_filter(session, input, output, params)
     
-    create_data_table(session, input, output, params, params$material_select, "Samples")
-    
-    create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", params$material_select), "Norm_Samples")
-    
-    if (input$norm_select != "None") {
-      create_data_table(session, input, output, params, str_c(params$norm_select, "_Filtered_Norm_",params$material_select), "Samples_Filtered")
-    } else {
-      create_data_table(session, input, output, params, str_c("Filtered_",params$material_select), "Samples_Filtered")
-    }
+    ui_render_sample_tables(session, input, output, params)
     
     cat(file = stderr(), "\n\n","process_material clicked...end", "\n")
     removeModal()

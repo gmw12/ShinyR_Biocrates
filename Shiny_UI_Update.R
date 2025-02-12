@@ -31,6 +31,13 @@ ui_render_startup <- function(session, input, output, params) {
     ui_render_qc_plots(session, input, output)
   }
   
+  if (stringr::str_c("SPQC_Report_", params$material_select) %in% list_tables(params)) {
+    ui_render_sample_tables(session, input, output, params)
+    ui_render_spqc_plots(session, input, output, params)
+  }
+  
+  
+  
   update_widgets(session, input, output, params)
   
   
@@ -38,8 +45,24 @@ ui_render_startup <- function(session, input, output, params) {
   cat(file = stderr(), "Function ui_render_startup...end", "\n\n")
 }
 
+#-------------------------------------------------------------------------------------------
+ui_render_sample_tables <- function(session, input, output, params) {
+  cat(file = stderr(), "Function ui_render_sample_tables", "\n")
 
-
+  create_data_table(session, input, output, params, params$material_select, "Samples")
+  
+  create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", params$material_select), "Norm_Samples")
+  
+  if (params$norm_select != "None") {
+    create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Filtered_Norm_",params$material_select), "Samples_Filtered")
+  } else {
+    create_data_table(session, input, output, params, stringr::str_c("Filtered_",params$material_select), "Samples_Filtered")
+  }
+  
+  create_data_table(session, input, output, params, stringr::str_c("SPQC_Report_", params$material_select), "SPQC")
+  
+  cat(file = stderr(), "Function ui_render_sample_tables...end", "\n")
+}
 #-------------------------------------------------------------------------------------------
 ui_render_load_config <- function(session, input, output) {
   cat(file = stderr(), "Function ui_render_load_config", "\n")

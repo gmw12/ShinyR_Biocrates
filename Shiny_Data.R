@@ -294,7 +294,6 @@ report_template_bg <- function(params){
   
   df_report_colnames <- colnames(df_report)
   
-
   for (plate in plates) {
     
     #works for bileacids and q500, cases where multiple plates listed
@@ -381,6 +380,9 @@ replace_lod_bg <- function(params){
   df_info <- df[,1:(ncol(df)-nrow(df_report))]
   df_data <- df[,(ncol(df)-nrow(df_report)+1):ncol(df) ]
   
+  #replace 0 value with "< LOD" in df_data
+  df_data[df_data == 0] <- "< LOD"
+  
   #fill df_random with random numbers between 0 and 1
   set.seed(1234)
   df_random <- df_data
@@ -401,9 +403,9 @@ replace_lod_bg <- function(params){
     if (length(find_lod_cols) >=1 ) { 
       for (c in find_lod_cols) {
         if (params$fixed_lod){
-          df_data[r,c] <- as.numeric(df_report[c,find_plate_lod_col], digits = 3)
+          df_data[r,c] <- as.numeric(df_report[c,find_plate_lod_col], digits = 5)
         }else {
-          df_data[r,c] <- round(df_random[r,c] * as.numeric(df_report[c,find_plate_lod_col]), digits = 3)
+          df_data[r,c] <- round(df_random[r,c] * as.numeric(df_report[c,find_plate_lod_col]), digits = 5)
       }
     }
    }
@@ -463,7 +465,7 @@ qc_calc_bg <- function(params){
       df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report_template)+1):ncol(df_plate)]
       #set df_plate to numeric
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
-      df_mean <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+      df_mean <- round(colMeans(df_plate, na.rm = TRUE), digits = 5)
       df_qc_report[stringr::str_c(qc, " ", plate, " Mean (uM)")] <- df_mean
       #calc the %CV from columns of df_plate
       df_acc <- round(100 * (df_mean/qc_std_levels), digits = 1)
@@ -532,6 +534,7 @@ process_data_bg <- function(params){
 #---------------------------------------------------------------------
 normalize_data <- function(df, df_report, material, params){
   cat(file = stderr(), "Function normalize_data...", "\n")
+  # material = params$material_select
   
   if (params$norm_select != "None") {
     df_norm <- df[grep(params$norm_select, df$Sample.description),]
@@ -547,7 +550,7 @@ normalize_data <- function(df, df_report, material, params){
     #isolate data only
     df_norm_data <- df_norm[,(ncol(df_norm)-nrow(df_report)+1):ncol(df_norm)]
     df_norm_data <- as.data.frame(lapply(df_norm_data, as.numeric))
-    mean_df_norm_data <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 3)
+    mean_df_norm_data <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 5)
     df_norm_mean[stringr::str_c("Mean ", params$norm_select, " ", material)] <- mean_df_norm_data
     df_norm_mean[stringr::str_c("CV ", params$norm_select, " ", material)] <- round(100 * (apply(df_norm_data, 2, sd, na.rm = TRUE) / mean_df_norm_data), digits = 2)
 
@@ -559,7 +562,7 @@ normalize_data <- function(df, df_report, material, params){
       df_plate <- df_norm[grep(plate, df_norm$Plate.bar.code),]
       df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
-      df_norm_plate_mean[stringr::str_c(params$norm_select, " ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+      df_norm_plate_mean[stringr::str_c(params$norm_select, " ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 5)
     } 
     
     df_norm_plate_mean <- df_norm_plate_mean[,4:ncol(df_norm_plate_mean)]
@@ -578,7 +581,7 @@ normalize_data <- function(df, df_report, material, params){
       norm_factor <- df_norm_factor[[stringr::str_c(params$norm_select, " ", plate, " ", material)]]
       #divide each row of df_plate by norm_factor
       df_plate_norm <- sweep(df_plate, 2,  norm_factor, "/")
-      df_plate_norm <- round(df_plate_norm, digits = 3)
+      df_plate_norm <- round(df_plate_norm, digits = 5)
       df_plate_norm <- cbind(df_info_plate, df_plate_norm)
       
       #if first pass through loop
@@ -629,7 +632,7 @@ spqc_report <- function(df_report, params){
     
     #set df_material to numeric
     df_all <- as.data.frame(lapply(df_all, as.numeric))
-    mean_df_spqc_material <- round(colMeans(df_all, na.rm = TRUE), digits = 3)
+    mean_df_spqc_material <- round(colMeans(df_all, na.rm = TRUE), digits = 5)
     
     #calc the %CV from columns of df_spqc_material
     cv_df_spqc_material <- round(100 * (apply(df_all, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
@@ -641,7 +644,7 @@ spqc_report <- function(df_report, params){
       #isolate data only
       df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
-      mean_plate_df_spqc_material <- round(colMeans(df_plate, na.rm = TRUE), digits = 3)
+      mean_plate_df_spqc_material <- round(colMeans(df_plate, na.rm = TRUE), digits = 5)
       cv_plate_df_spqc_material <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
       df_spqc_report[stringr::str_c("Mean ", plate, " ", params$material_select, " SPQC(uM)")] <- mean_plate_df_spqc_material
       df_spqc_report[stringr::str_c("%CV ", plate, " ", params$material_select, " SPQC(uM)")] <- cv_plate_df_spqc_material
@@ -704,6 +707,9 @@ spqc_missing_filter_bg <- function(params, use_norm){
     #filter df_start for material in Materials
     df_material_start <- df_start[grep(params$material_select, df_start$Material),]
     df_material_start <- df_material_start[,(ncol(df_material_start)-nrow(df_report)+1):ncol(df_material_start)]
+    #replace 0 values with "< LOD"
+    df_material_start[df_material_start == 0] <- "< LOD"
+    
     #count the number of times "LOD" appears in each column of df_material_start
     lod_count <- apply(df_material_start, 2, function(x) sum(grepl("LOD", x)))
     lod_count <- round(lod_count/nrow(df_material_start)*100,2)
@@ -730,42 +736,6 @@ spqc_missing_filter_bg <- function(params, use_norm){
   cat(file = stderr(), "Function spqc_missing_filter_bg...end", "\n")
 }
 
-#---------------------------------------------------------------------
-
-explore_start <- function(session, input, output, params){
-  cat(file = stderr(), "Function explore_start...", "\n")
-  
-  input_material_explore <- input$material_explore
-  input_data_type <- input$data_type
-
-  bg_explore_start <- callr::r_bg(explore_start_bg, 
-                                        args = list(params, input_material_explore, input_data_type), 
-                                        stderr = str_c(params$error_path, "//error_explore_start.txt"), supervise = TRUE)
-  bg_explore_start$wait()
-  print_stderr("error_explore_start.txt")
-  
-  interactive_pca2d <- function(session, input, output)
-  
-  cat(file = stderr(), "Function explore_start...end", "\n")
-}
-
-#---------------------------------------------------------------------
-
-explore_start_bg <- function(params, input_material_explore, input_data_type){
-  cat(file = stderr(), "Function explore_start_bg...", "\n")
-  source('Shiny_File.R')
-  
-  if (input_data_type == 1) {
-    table_name <- input_material_explore
-  } else {
-    table_name <- stringr::str_c("Filtered_", input_material_explore)
-  }
-  
-  df <- read_table_try(table_name, params)
-  
-  cat(file = stderr(), "Function explore_start_bg...end", "\n")
-}
-
 
 
 
@@ -782,11 +752,13 @@ final_excel <- function(session, input, output, params) {
   input_excel_impute_data <- input$excel_impute_data
   input_excel_report <- input$excel_report
   input_excel_qc_report <- input$excel_qc_report
-  input_excel_samples <- input$excel_samples
+  input_excel_spqc_report <- input$excel_spqc_report
+  input_excel_samples_raw <- input$excel_samples_raw
+  input_excel_samples_norm <- input$excel_samples_norm
   input_excel_filename <- input$excel_filename
   
   arg_list <- list(params, input_excel_raw_data, input_excel_raw_data_no_indicator, input_excel_impute_data, 
-                   input_excel_report, input_excel_qc_report, input_excel_samples, input_excel_filename)
+                   input_excel_report, input_excel_qc_report, input_excel_spqc_report, input_excel_samples_raw, input_excel_samples_norm, input_excel_filename)
   
   bg_excel <- callr::r_bg(func = final_excel_bg, args = arg_list, stderr = stringr::str_c(params$error_path, "//error_finalexcel.txt"), supervise = TRUE)
   bg_excel$wait()
@@ -802,7 +774,7 @@ final_excel <- function(session, input, output, params) {
 #----------------------------------------------------------------------------------------
 # create final excel documents
 final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no_indicator, input_excel_impute_data, 
-                           input_excel_report, input_excel_qc_report, input_excel_samples, input_excel_filename) {
+                           input_excel_report, input_excel_qc_report, input_excel_spqc_report, input_excel_samples_raw, input_excel_samples_norm, input_excel_filename) {
   cat(file = stderr(), "Function Final_Excel_bg...", "\n")
   
   require(openxlsx)
@@ -847,21 +819,61 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
     nextsheet <- nextsheet + 1
   }
   
-  if (input_excel_samples) {
+  if (input_excel_spqc_report) {
     materials <- unique(unlist(strsplit(params$material_list, ",")))
     for (material in materials) {
-      addWorksheet(wb, material)
-      excel_df <- read_table_try(material, params)
-      writeData(wb, sheet = nextsheet, excel_df)
-      nextsheet <- nextsheet + 1
-      filtered_material <- stringr::str_c("filtered_", material)
-      addWorksheet(wb, filtered_material)
-      excel_df <- read_table_try(filtered_material, params)
-      writeData(wb, sheet = nextsheet, excel_df)
-      nextsheet <- nextsheet + 1
-      
+      excel_df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
+      if (material == materials[1]) {
+        excel_df_all <- excel_df
+      }else{
+        if (params$data_source == "BileAcid") {
+          excel_df_all <- rbind(excel_df_all, excel_df[,-c(1:3)])
+        }else{
+        excel_df_all <- rbind(excel_df_all, excel_df[,-c(1:5)])
+        }
+      }
     }
+    addWorksheet(wb, "SPQC Summary")
+    writeData(wb, sheet = nextsheet, excel_df_all)
+    nextsheet <- nextsheet + 1
   }
+  
+
+  materials <- unique(unlist(strsplit(params$material_list, ",")))
+  db_tables <- list_tables(params)
+  for (material in materials) {
+    
+    if (input_excel_samples_raw) {
+      if (material %in% db_tables) {
+        addWorksheet(wb, material)
+        excel_df <- read_table_try(material, params)
+        writeData(wb, sheet = nextsheet, excel_df)
+        nextsheet <- nextsheet + 1
+      }
+      if (stringr::str_c("Filtered_", material) %in% db_tables) {
+        addWorksheet(wb, stringr::str_c("Filtered_", material))
+        excel_df <- read_table_try(stringr::str_c("Filtered_", material), params)
+        writeData(wb, sheet = nextsheet, excel_df)
+        nextsheet <- nextsheet + 1
+        }
+    }
+    
+    if (input_excel_samples_norm) {
+      if (stringr::str_c(params$norm_select, "_Norm_", material) %in% db_tables) {
+        addWorksheet(wb, stringr::str_c(params$norm_select, "_Norm_", material))
+        excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", material), params)
+        writeData(wb, sheet = nextsheet, excel_df)
+        nextsheet <- nextsheet + 1
+      }
+      if (stringr::str_c(params$norm_select, "_Filtered_Norm_", material) %in% db_tables) {
+        addWorksheet(wb, stringr::str_c(params$norm_select, "_Filtered_Norm_", material))
+        excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), params)
+        writeData(wb, sheet = nextsheet, excel_df)
+        nextsheet <- nextsheet + 1
+      }
+    }
+    
+    }
 
   cat(file = stderr(), "writting excel to disk...", "\n")
   saveWorkbook(wb, filename, overwrite = TRUE)

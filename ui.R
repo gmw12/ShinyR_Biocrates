@@ -226,6 +226,14 @@ body <- dashboardBody(
                                        )
                               ),
                               
+                              tabPanel("SPQC Data",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              tags$head(tags$style("#spqc_material_table{color: blue; font-size: 12px;}")),
+                                              DT::dataTableOutput("spqc_material_table", width ='100%')
+                                       )
+                              ),
+                              
                               tabPanel("SPQC Barplot",
                                        column(width =12, offset =0,
                                               hr(),
@@ -303,10 +311,11 @@ body <- dashboardBody(
                                               checkboxInput("excel_raw_data", label = "Raw Data", value = TRUE),
                                               checkboxInput("excel_raw_data_no_indicator", label = "Raw Data no status/indicators", value = FALSE),
                                               checkboxInput("excel_impute_data", label = "Imputed Data", value = TRUE),
-                                              checkboxInput("excel_report", label = "Sample Info Report", value = TRUE),
+                                              checkboxInput("excel_report", label = "Sample Info Report (LOD)", value = TRUE),
                                               checkboxInput("excel_qc_report", label = "QC Report", value = TRUE),
-                                              checkboxInput("excel_samples", label = "Analyzed Materials", value = TRUE),
-                                              
+                                              checkboxInput("excel_spqc_report", label = "SPQC Report", value = TRUE),
+                                              checkboxInput("excel_samples_raw", label = "Analyzed Raw Materials", value = TRUE),
+                                              checkboxInput("excel_samples_norm", label = "Analyzed Normalized Materials", value = TRUE),
                                               textInput("excel_filename", label = "File Name", value = "final_data_return.xlsx", width = 250),
                                               
                                               actionButton("create_excel", label = "Create Excel", width = 150,
