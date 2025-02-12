@@ -75,7 +75,7 @@ df_spqc_report <- read_table("SPQC_Report_brain tissue" , params)
 #subset df_plasma where Sample.description contains SPQC
 df_report <- read_table('QC_Report', params)
 df_plasma_spqc <- df_plasma[grep("SPQC", df_plasma$Sample.description),]
-
+df <- read_table('data_raw', params)
 
 # Create a sample data frame in wide format
 wide_df <- data.frame(

@@ -252,7 +252,7 @@ interactive_pca2d <- function(session, input, output, params) {
     table_name <- stringr::str_c("filtered_", input$material_select)  
   }
   
-cat(file = stderr(), str_c("table name = ", table_name), "\n")  
+ cat(file = stderr(), str_c("table name = ", table_name), "\n")  
  df <- read_table_try(table_name, params)
  df_report <- read_table_try("Report", params)
  
@@ -265,7 +265,6 @@ cat(file = stderr(), str_c("table name = ", table_name), "\n")
  #df$Sample.description[grep("XXXX", df$Sample.description)] <- "Sample"
  df$Sample.description[-grep(paste(match_list, collapse="|"), df$Sample.description)] <- "Sample"
 
-  
  
  if(input$pca_by_plate) {
   df$Sample.description <- stringr::str_c(df$Sample.description, "_", df$Submission.name)    

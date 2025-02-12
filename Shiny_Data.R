@@ -104,6 +104,12 @@ load_data_bg <- function(data_sfb, params){
     infinity_error <- FALSE  
   }
   
+  #remove trailing and leading whitespace from df$Material
+  df$Material <- trimws(df$Material)
+  
+  #clean Material column
+  df$Material <- gsub(" ", "_", df$Material)
+  
   write_table_try("data_raw", df, params)
   
   write_table_try("params", params, params)
@@ -602,7 +608,12 @@ normalize_data <- function(df, df_report, material, params){
 spqc_report <- function(df_report, material, params){
   cat(file = stderr(), "Function spqc_report...", "\n")
   
-  df_spqc_report <- df_report[,1:3]
+  if(params$sources == "BileAcid"){
+    df_spqc_report <- df_report[,1:3]
+  }else {
+    df_spqc_report <- df_report[,1:5]
+  }
+  
   
   #subset of data with "SPQC" in Sample.description
   if (params$norm_select != "None"){
@@ -689,16 +700,13 @@ spqc_missing_filter_bg <- function(params){
     
   if (params$spqc_filter) {
     #from df_report find columns that contain "SPQC"
-    material_cols <- grep(params$material_select, colnames(df_report))
-    spqc_cols <- grep("SPQC", colnames(df_report))
-    cv_cols <- grep("CV", colnames(df_report))
-    #find common value in material_cols, spqc_cols and cv_cols
-    common_cols <- intersect(material_cols, intersect(spqc_cols, cv_cols))
+    cv_col <- grep("CV", colnames(df_report))[1]
+    high_cv <- which(df_report[cv_col] > params$spqc_filter_value)
+    high_cv_analytes <- df_report$R_colnames[high_cv]
     
     if (length(common_cols > 0)) {
       #find rows in df_report[common_cols] that are higer than 30
-      high_cv <- which(df_report[common_cols] > params$spqc_filter_value)
-      high_cv_analytes <- df_report$R_colnames[high_cv]
+
     }else{
       cat(file = stderr(), "No common columns found", "\n")
     }
