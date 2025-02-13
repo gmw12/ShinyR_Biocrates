@@ -71,7 +71,7 @@ qc_grouped_plot_bg <- function(plot_title, params) {
     df <- read_table_try("QC_Report", params)
     df_qc1 <- df |> dplyr::select(contains("QC1.Level"))
     row_remove <- which(df_qc1 == 0.0010, arr.ind = TRUE)
-    df <- df[-row_remove,]
+    if(length(row_remove) > 0) {df <- df[-row_remove,]}
     test <- df |> dplyr::select(contains("Accuracy")) 
     lower_limit <- 100 - params$qc_acc
     upper_limit <- 100 + params$qc_acc
@@ -135,7 +135,7 @@ box_plot_bg <- function(plot_title, params) {
     df <- read_table_try("QC_Report", params)
     df_qc1 <- df |> dplyr::select(contains("QC1.Level"))
     row_remove <- which(df_qc1 == 0.0010, arr.ind = TRUE)
-    df <- df[-row_remove,]
+    if(length(row_remove) > 0) {df <- df[-row_remove,]}
     test <- df |> dplyr::select(contains("Accuracy")) 
     df_box <- df |> dplyr::select(contains("Accuracy"))
     #remove "Accuracy" from column names

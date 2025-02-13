@@ -50,14 +50,12 @@ ui_render_sample_tables <- function(session, input, output, params) {
   cat(file = stderr(), "Function ui_render_sample_tables", "\n")
 
   create_data_table(session, input, output, params, params$material_select, "Samples")
-  
-  create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", params$material_select), "Norm_Samples")
+  create_data_table(session, input, output, params, stringr::str_c("Filtered_",params$material_select), "Samples_Filtered")
   
   if (params$norm_select != "None") {
     create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Filtered_Norm_",params$material_select), "Samples_Filtered")
-  } else {
-    create_data_table(session, input, output, params, stringr::str_c("Filtered_",params$material_select), "Samples_Filtered")
-  }
+    create_data_table(session, input, output, params, stringr::str_c(params$norm_select, "_Norm_", params$material_select), "Norm_Samples")
+  } 
   
   create_data_table(session, input, output, params, stringr::str_c("SPQC_Report_", params$material_select), "SPQC")
   
@@ -125,9 +123,12 @@ ui_render_spqc_plots <- function(session, input, output, params) {
     list(src = str_c(params$plot_path,"SPQC_", params$material_select, "_boxplot.png"), contentType = 'image/png', width = 800, height = 600, alt = "this is alt text")
   }, deleteFile = FALSE)
   
-  output$spqc_line <- renderImage({
-    list(src = str_c(params$plot_path, params$material_select, "_Norm_factor_line_plot.png"), contentType = 'image/png', width = 1200, height = 600, alt = "this is alt text")
-  }, deleteFile = FALSE)
+  if(params$norm_select != "None"){
+    output$spqc_line <- renderImage({
+      list(src = str_c(params$plot_path, params$material_select, "_Norm_factor_line_plot.png"), contentType = 'image/png', width = 1200, height = 600, alt = "this is alt text")
+    }, deleteFile = FALSE)
+  }
+
   
   cat(file = stderr(), "function ui_render_qc_plots...end", "\n")
 }

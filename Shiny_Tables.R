@@ -65,17 +65,17 @@ create_data_table_bg <- function(params, table_name){
         visible = TRUE,
         "width" = '50',
         className = 'dt-center'
-      ),
-      list(
-        targets = c(15),
-        width = '20',
-        render = JS(
-          "function(data, type, row, meta) {",
-          "return type === 'display' && data.length > 35 ?",
-          "'<span title=\"' + data + '\">' + data.substr(0, 35) + '...</span>' : data;",
-          "}"
-        )
       )
+      #list(
+        #targets = c(5),
+        #width = '20',
+        # render = JS(
+        #   "function(data, type, row, meta) {",
+        #   "return type === 'display' && data.length > 35 ?",
+        #   "'<span title=\"' + data + '\">' + data.substr(0, 35) + '...</span>' : data;",
+        #   "}"
+        # )
+      #)
     ),
     ordering = TRUE,
     orderClasses = TRUE,

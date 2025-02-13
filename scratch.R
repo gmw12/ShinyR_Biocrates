@@ -71,6 +71,7 @@ df_norm <- read_table('SPQC_Norm_brain_tissue', params)
 df_data_impute <- read_table('data_impute', params)
 df_spqc_factor <- read_table('SPQC_Norm_Factor_brain_tissue', params)
 df_spqc_report <- read_table("SPQC_Report_brain_tissue" , params)
+df_spqc_report <- read_table("SPQC_Report_plasma" , params)
 #-------------------------------------------------------------------------------------------
 #subset df_plasma where Sample.description contains SPQC
 df_report <- read_table('QC_Report', params)
