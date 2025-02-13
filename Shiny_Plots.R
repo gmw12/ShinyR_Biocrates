@@ -91,7 +91,7 @@ qc_grouped_plot_bg <- function(plot_title, params) {
     test[test > params$qc_acc] <- 0
     test[test > 0] <- 1
     lower_limit_text <- stringr::str_c("CV < ", params$qc_acc)
-    upper_limit_text <- stringr::str_c("Accuracy > ", params$qc_acc)
+    upper_limit_text <- stringr::str_c("CV > ", params$qc_acc)
     file_name <- stringr::str_c(params$plot_path, plot_title, "_", params$material_select, "_barplot.png")
   }
   
