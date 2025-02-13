@@ -57,6 +57,7 @@ body <- dashboardBody(
                                                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4; display:center")),
                            
                            tags$h4("3. Select data file(s).."),
+                           fluidRow(align = "center", checkboxInput("simple_plate", label = "Simplify plate name?", value = FALSE)),
                            
                            fluidRow(align = "center", shinyFilesButton('sfb_data_file', label = 'Select Data File', title = 'Please select data file(s)', multiple = FALSE,
                                                                        style = "color: #fff; background-color: #337ab7; border-color: #2e6da4")),

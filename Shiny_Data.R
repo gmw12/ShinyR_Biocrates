@@ -65,6 +65,7 @@ load_data_file <- function(session, input, output, params){
   data_sfb <- parseFilePaths(volumes, input$sfb_data_file)
   data_path <- str_extract(data_sfb$datapath, "^/.*/")
   params$data_file <- basename(data_sfb$datapath)
+  params$simple_plate <- input$simple_plate
   
   save_data(data_sfb$datapath)
   
@@ -220,9 +221,14 @@ separate_data <- function(session, input, output, params){
 separate_data_bg <- function(params){
   cat(file = stderr(), "Function separate_data_bg...", "\n")
   source('Shiny_File.R')
+  source('Shiny_Misc_Functions.R')
   
   df <- read_table_try("data_no_indicators", params)
 
+  if(params$simple_plate) {
+    df <- simple_plate_name(df)
+  }
+  
   #find row number for first row with number or letters
   data_rows <- which(grepl("^[0-9]", df[[1]]))
   df_data <- df[data_rows,]

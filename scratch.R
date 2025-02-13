@@ -192,3 +192,61 @@ print(sum(line_counts_df$Lines))
 
 #-------------------------------------------------------------------------------------------
 
+
+plates <- unique(df$Plate.bar.code)
+plates <- paste(plates, collapse = " | ")
+plates <- strsplit(plates, " | ")
+plates <- unlist(plates)
+plates <- plates[plates != ""]
+plates <- plates[plates != "|"]
+plates <- unique(plates)
+
+common_left_str <- ""
+common <- TRUE
+i <- 1
+
+while (common) {
+  test_str <- substr(plates[1], 1, i)
+  cat(file = stderr(), str_c("test_str=", test_str), "\n")
+  for (j in 1:length(plates)) {
+    if (substr(plates[j], 1, i) != test_str) {
+      cat(file = stderr(), str_c("i=",i," j=",j," test_str=", substr(plates[j], 1, i)), "\n")
+      common <- FALSE
+      break
+    }
+  }
+  if (common) {common_left_str <- test_str}
+  i <- i + 1
+}
+
+
+common_right_str <- ""
+common <- TRUE
+i <- 0
+
+while (common) {
+  test_str <- substr(plates[1], nchar(plates[1])-i, nchar(plates[1]))
+  cat(file = stderr(), str_c("test_str=", test_str), "\n")
+  for (j in 1:length(plates)) {
+    if (substr(plates[j], nchar(plates[1])-i, nchar(plates[1])) != test_str) {
+      cat(file = stderr(), str_c("i=",i," j=",j," test_str=", substr(plates[1], nchar(plates[j])-i, nchar(plates[1]))), "\n")
+      common <- FALSE
+      break
+    }
+  }
+  if (common) {common_right_str <- test_str}
+  i <- i + 1
+}
+
+
+new_plate <- gsub(common_left_str, "", plates)
+new_plate <- gsub(common_right_str, "", new_plate)
+
+for (i in 1:length(plates)) {
+  df <- df |>
+    mutate( across(
+      .cols = everything(),
+      ~str_replace( ., plates[[i]], test[[i]] )
+    ) )
+}
+
