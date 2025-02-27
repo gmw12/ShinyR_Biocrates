@@ -109,6 +109,8 @@ shinyServer(function(session, input, output) {
       create_report_table(session, input, output, params, "Report_template")
       
       update_widgets(session, input, output, params)
+      
+      hide_enable(session, input, output, params)
 
       removeModal()
       cat(file = stderr(), "sfb_data_file button clicked...end", "\n\n\n")
@@ -131,6 +133,8 @@ shinyServer(function(session, input, output) {
       output$archive_file_name <- renderText({archive_name})
       
       ui_render_startup(session, input, output, params)
+      
+      hide_enable(session, input, output, params)
 
       cat(file = stderr(), "sfb_archive_file button clicked...end", "\n\n\n")
     }
