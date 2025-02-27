@@ -120,7 +120,7 @@ qc_grouped_plot_bg <- function(plot_title, params) {
     ggplot2::xlab(NULL) +
     ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5), 
                    axis.text.x = ggplot2::element_text(size = 5, angle = 45, hjust = 1, color = "black"),
-                   axis.text.y = ggplot2::element_text(size = 5,  color = "black"))
+                   axis.text.y = ggplot2::element_text(size = 10,  color = "black"))
   ggplot2::ggsave(file_name, width = 8, height = 6)
   
   cat(file = stderr(), stringr::str_c("function qc_grouped_plot_bg....end"), "\n")
