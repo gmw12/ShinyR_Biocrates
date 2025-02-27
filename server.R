@@ -45,12 +45,14 @@ shinyServer(function(session, input, output) {
   #button observers
   observe_buttons(session, input, output)
   
+  hide_enable(session, input, output, params)
+  
   #------------------------------------------------------------------------------------------------------  
   #Load design file
   observeEvent(input$sfb_config_file, {
     showModal(modalDialog("Loading config file...", footer = NULL))
     
-    cat(file = stderr(), "\n\n", "sfb_design_file button clicked...", "\n")
+    cat(file = stderr(), "sfb_design_file button clicked...", "\n")
     
     if (is.list(input$sfb_config_file)) {
       
@@ -71,13 +73,14 @@ shinyServer(function(session, input, output) {
     }
     
     removeModal()
+    cat(file = stderr(), "sfb_design_file button clicked...end", "\n\n\n")
   })
   
   #------------------------------------------------------------------------------------------------------  
   #Load data file
   observeEvent(input$sfb_data_file, {
     
-    cat(file = stderr(), "\n\n","sfb_data_file button clicked...", "\n")
+    cat(file = stderr(), "sfb_data_file button clicked...", "\n")
     
     if (is.list(input$sfb_data_file)) {
       showModal(modalDialog("Loading and preprocessing data...", footer = NULL))
@@ -108,6 +111,7 @@ shinyServer(function(session, input, output) {
       update_widgets(session, input, output, params)
 
       removeModal()
+      cat(file = stderr(), "sfb_data_file button clicked...end", "\n\n\n")
     }
     
   }) 
@@ -116,7 +120,7 @@ shinyServer(function(session, input, output) {
   #Load data file
   observeEvent(input$sfb_archive_file, {
 
-    cat(file = stderr(), "\n\n","sfb_archive_file button clicked...", "\n")
+    cat(file = stderr(), "sfb_archive_file button clicked...", "\n")
 
     if (is.list(input$sfb_archive_file)) {
       cat(file = stderr(), "\n\n","sfb_archive_file button clicked...1", "\n")
@@ -128,7 +132,7 @@ shinyServer(function(session, input, output) {
       
       ui_render_startup(session, input, output, params)
 
-      cat(file = stderr(), "\n\n","sfb_archive_file button clicked...end", "\n")
+      cat(file = stderr(), "sfb_archive_file button clicked...end", "\n\n\n")
     }
 
   })
@@ -139,13 +143,13 @@ shinyServer(function(session, input, output) {
   observeEvent(input$replace_lod, {
     showModal(modalDialog("Imputing LOD's...", footer = NULL))
     
-    cat(file = stderr(), "\n\n","replace_lod clicked...", "\n")
+    cat(file = stderr(), "replace_lod clicked...", "\n")
     
     replace_lod(session, input, output, params)
     
     create_data_table(session, input, output, params, "data_impute", "QC")
 
-    cat(file = stderr(), "\n\n","replace_lod clicked...end", "\n")
+    cat(file = stderr(), "replace_lod clicked...end", "\n\n\n")
     
     removeModal()
   }) 
@@ -154,7 +158,7 @@ shinyServer(function(session, input, output) {
   observeEvent(input$qc_calc, {
     showModal(modalDialog("QC Calculations...", footer = NULL))
     
-    cat(file = stderr(), "\n","qc_calc clicked...", "\n")
+    cat(file = stderr(), "qc_calc clicked...", "\n")
     
     qc_calc(session, input, output, params)
     
@@ -162,7 +166,7 @@ shinyServer(function(session, input, output) {
     
     create_qc_plots(sesion, input, output, params)
     
-    cat(file = stderr(), "\n","qc_calc clicked...end", "\n")
+    cat(file = stderr(), "qc_calc clicked...end", "\n\n\n")
     removeModal()
     
     
@@ -173,7 +177,7 @@ shinyServer(function(session, input, output) {
   observeEvent(input$process_material, {
     showModal(modalDialog("Processing data...", footer = NULL))
     
-    cat(file = stderr(), "\n","process_material clicked...", "\n")
+    cat(file = stderr(), "process_material clicked...", "\n")
     
     process_data(session, input, output, params)
     
@@ -183,7 +187,7 @@ shinyServer(function(session, input, output) {
     
     ui_render_sample_tables(session, input, output, params)
     
-    cat(file = stderr(), "\n\n","process_material clicked...end", "\n")
+    cat(file = stderr(), "process_material clicked...end", "\n\n\n")
     removeModal()
   }) 
   
@@ -192,11 +196,11 @@ shinyServer(function(session, input, output) {
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$create_pca, {
     
-    cat(file = stderr(), "\n\n","create_pca clicked...", "\n")
+    cat(file = stderr(), "create_pca clicked...", "\n")
     
     interactive_pca2d(session, input, output, params)
     
-    cat(file = stderr(), "\n\n","create_pca clicked...end", "\n")
+    cat(file = stderr(), "create_pca clicked...end", "\n\n\n")
     
   }) 
   
@@ -204,22 +208,22 @@ shinyServer(function(session, input, output) {
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$create_excel, {
     
-    cat(file = stderr(), "\n\n","create_excel clicked...", "\n")
+    cat(file = stderr(), "create_excel clicked...", "\n")
     
     final_excel(session, input, output, params)
     
-    cat(file = stderr(), "\n\n","create_excel clicked...end", "\n")
+    cat(file = stderr(), "create_excel clicked...end", "\n\n\n")
     
   }) 
   
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$archive_data, {
     
-    cat(file = stderr(), "\n\n","archive_data clicked...", "\n")
+    cat(file = stderr(), "archive_data clicked...", "\n")
     
     zip_data_save(session, input, output, params)
     
-    cat(file = stderr(), "\n\n","archive_data clicked...end", "\n")
+    cat(file = stderr(), "archive_data clicked...end", "\n\n\n")
     
   }) 
   

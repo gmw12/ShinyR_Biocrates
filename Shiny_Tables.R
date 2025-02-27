@@ -120,26 +120,28 @@ create_report_table_bg <- function(params, table_name){
   #get raw_datadata
   df_report <- read_table_try(table_name, params)
 
+  #save(df_report, file="z1")    #  load(file="z1") 
+  
   options <- list(
     selection = 'single',
-    autoWidth = TRUE,
+    #autoWidth = TRUE,
     scrollX = TRUE,
     scrollY = 500,
     scrollCollapse = TRUE,
-    columnDefs = list(
-      list(
-        targets = c(1),
-        visibile = TRUE,
-        "width" = '5',
-        className = 'dt-center'
-      ),
-      list(
-        targets = c(2),
-        visible = TRUE,
-        "width" = '50',
-        className = 'dt-center'
-      )
-    ),
+    # columnDefs = list(
+    #   list(
+    #     targets = c(1),
+    #     visibile = TRUE,
+    #     "width" = '5',
+    #     className = 'dt-center'
+    #   ),
+    #   list(
+    #     targets = c(2),
+    #     visible = TRUE,
+    #     "width" = '50',
+    #     className = 'dt-center'
+    #   )
+    # ),
     ordering = TRUE,
     orderClasses = TRUE,
     fixedColumns = list(leftColumns = 1),

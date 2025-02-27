@@ -103,6 +103,48 @@ simple_plate_name <- function(df) {
       ) )
   }
   
-  cat(file = stderr(), "Function - simple_plate_name...end", "\n")
+  cat(file = stderr(), "Function - simple_plate_name...end", "\n\n")
+  return(df)
+}
+#---------------------------------------------------------------------
+clean_dataframe <- function(df) {
+  cat(file = stderr(), "Function - clean_dataframe...", "\n")
+  # Define problematic characters that typically cause database issues
+  
+  problem_chars_all <- c(
+    # Special characters that often cause SQL issues
+    "'", "\"", "\\", "/", "%", "_", 
+    # Control characters
+    "\b", "\f", "\n", "\r", "\t",
+    # Other potentially problematic symbols
+    ";", ":", "?", "&", "<", ">", "|", "*"
+  )
+  
+  problem_chars <- c(";", ":", "?", "&", "*")
+  
+  # Define replacement character
+  replacement_char <- "_"
+  
+  # Process only character columns
+  char_cols <- sapply(df, is.character)
+  
+  colnames(df) <- gsub("\\[.*?mg\\]", "[ul/mg]", colnames(df), useBytes = TRUE)
+  
+  if(any(char_cols)) {
+    for(col in names(df)[char_cols]) {
+        # Replace each problematic character with the replacement
+        df[[col]] <- gsub("\\[.*?M\\]", "[uM]", df[[col]], useBytes = TRUE)
+    }
+  }
+  
+  if(any(char_cols)) {
+    for(col in names(df)[char_cols]) {
+      for(char in problem_chars) {
+        # Replace each problematic character with the replacement
+        df[[col]] <- gsub(char, replacement_char, df[[col]], fixed = TRUE)
+      }
+    }
+  }
+  cat(file = stderr(), "Function - clean_dataframe...end", "\n\n")
   return(df)
 }

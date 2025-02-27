@@ -36,15 +36,17 @@ create_spqc_plots <- function(sesion, input, output, params){
   
   bg_spqc_bar <- callr::r_bg(func = qc_grouped_plot_bg, args = list("SPQC", params), stderr = str_c(params$error_path,  "//error_spqcbarplot.txt"), supervise = TRUE)
   bg_spqc_box <- callr::r_bg(func = box_plot_bg, args = list("SPQC", params), stderr = str_c(params$error_path, "//error_spqcboxplot.txt"), supervise = TRUE)
-  bg_norm_line <- callr::r_bg(func = norm_line_bg, args = list(params), stderr = str_c(params$error_path, "//error_normlineplot.txt"), supervise = TRUE)
- 
+  
   bg_spqc_box$wait()
   bg_spqc_bar$wait()
-  #bg_norm_line$wait()
-  
   print_stderr("error_spqcbarplot.txt")
   print_stderr("error_spqcboxplot.txt")
-  print_stderr("error_normlineplot.txt")
+  
+  if (input$norm_select != "None" & params$plate_number > 1) {
+    bg_norm_line <- callr::r_bg(func = norm_line_bg, args = list(params), stderr = str_c(params$error_path, "//error_normlineplot.txt"), supervise = TRUE)
+    bg_norm_line$wait()
+    print_stderr("error_normlineplot.txt")
+    }
   
   wait_cycle <- 0
   
@@ -238,9 +240,6 @@ norm_line_bg <- function(params) {
   cat(file = stderr(), stringr::str_c("function norm_line_bg....end"), "\n")
 }
 
-
-
-
 #------------------------------------------------------------------------------------------------------------------------
 
 interactive_pca2d <- function(session, input, output, params) {
@@ -262,7 +261,7 @@ interactive_pca2d <- function(session, input, output, params) {
   
  cat(file = stderr(), str_c("table name = ", table_name), "\n")  
  df <- read_table_try(table_name, params)
- df_report <- read_table_try("Report", params)
+ df_report <- read_table_try("Report_template", params)
  
  updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(input$material_select, " PCA2D"))
  

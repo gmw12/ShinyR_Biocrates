@@ -21,7 +21,7 @@ set_user <- function() {
       site_user <<- "dpmsr"
       python_path <<- "/home/dpmsr/anaconda3/envs/PDP/bin/python3"
     }else if (Sys.info()["nodename"] == "shiny-titan") {
-      volumes <<- c(dd = '/mnt/RawData', wd = '.', Home = fs::path_home(), getVolumes()())
+      volumes <<- c(RawData = '/mnt/RawData', DocShare = '/mnt/DocShare', wd = '.', Home = fs::path_home(), getVolumes()())
       site_user <<- "dpmsr"
       python_path <<- "/home/user/anaconda3/envs/python38/bin/python3"
     }else if (Sys.info()["nodename"] == "Gregorys-MBP.wired.duke.local" |Sys.info()["nodename"] == "gregorys-mbp.lan" | Sys.info()["nodename"] == "mac.lan" | Sys.info()["nodename"] == "Gregorys-MacBook-Pro.local" ) {
@@ -67,7 +67,8 @@ create_default_params <- function(volumes, python_path) {
     "extra_path" = "",
     "error_path" = "",
     "qc_path" = "",
-    "app_path" = ""
+    "app_path" = "",
+    "plate_number" = 0
     )
   
   cat(file = stderr(), "Function - create_default_params...end", "\n\n")

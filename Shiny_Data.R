@@ -51,7 +51,7 @@ load_config_file <- function(session, input, output){
   #save paramater table to database
   write_table_try("params", params, params)
   
-  cat(file = stderr(), "Function load_config_file...end", "\n")
+  cat(file = stderr(), "Function load_config_file...end", "\n\n")
 }
 
 
@@ -94,9 +94,10 @@ load_data_file <- function(session, input, output, params){
 load_data_bg <- function(data_sfb, params){
   cat(file = stderr(), "Function load_data_bg...", "\n")
   source('Shiny_File.R')
+  source('Shiny_Misc_Functions.R')
   
   df <- data.table::fread(file = data_sfb$datapath, header = TRUE, skip=1, stringsAsFactors = FALSE, sep = "\t", fill=TRUE)
-  #save(df, file="zdfloadunknowndata")    #  load(file="zdfloadunknowndata") 
+  #save(df, file="z1")    #  load(file="z1") 
   
   #search for "infinity" in df report infinity_error = TRUE if found
   if (any(grepl("infinity", df, ignore.case = TRUE))){
@@ -110,6 +111,9 @@ load_data_bg <- function(data_sfb, params){
   
   #clean Material column
   df$Material <- gsub(" ", "_", df$Material)
+  
+  #clean special characters
+  df <- clean_dataframe(df)
   
   write_table_try("data_raw", df, params)
   
@@ -130,7 +134,7 @@ remove_status_cols <- function(session, input, output, params){
   bg_status_col$wait()
   print_stderr("error_removestatuscols.txt")
 
-  cat(file = stderr(), "Function remove_status_cols...end", "\n")
+  cat(file = stderr(), "Function remove_status_cols...end", "\n\n")
   
 }
 
@@ -151,7 +155,7 @@ remove_status_cols_bg <- function(params){
 
   write_table_try("data_status", df, params)
   
-  cat(file = stderr(), "Function remove_status_cols_bg...end", "\n")
+  cat(file = stderr(), "Function remove_status_cols_bg...end", "\n\n")
   
 }
 
@@ -164,7 +168,7 @@ remove_indicators <- function(session, input, output, params){
   bg_indicators$wait()
   print_stderr("error_removeindicators.txt")
   
-  cat(file = stderr(), "Function remove_indicators...end", "\n")
+  cat(file = stderr(), "Function remove_indicators...end", "\n\n")
   
 }
 
@@ -192,7 +196,7 @@ remove_indicators_bg <- function(params){
   write_table_try("data_indicators", df_indicators, params)
   write_table_try("data_no_indicators", df, params)
   
-  cat(file = stderr(), "Function remove_indicators_bg...end", "\n")
+  cat(file = stderr(), "Function remove_indicators_bg...end", "\n\n")
   
 }
 
@@ -212,7 +216,7 @@ separate_data <- function(session, input, output, params){
     shinyalert("Oops!", "Data and Configuration do not match", type = "error")
   }
   
-  cat(file = stderr(), "Function separate_data...end", "\n")
+  cat(file = stderr(), "Function separate_data...end", "\n\n")
 }
 
 
@@ -240,7 +244,14 @@ separate_data_bg <- function(params){
   col_num <- which(colnames(df) == df_analytes$Name[1])
   df_info <- df_info[,(col_num - 1):ncol(df_info)]
   
-  plates <- unique(df_data[-grep("Standard", df_data$Sample.type),]$Plate.bar.code)
+  #check if "Standard" in df_data$Sample.type
+
+  if (any(grepl("Standard", df_data$Sample.type))) {
+    plates <- unique(df_data[-grep("Standard", df_data$Sample.type),]$Plate.bar.code)
+  }else{
+    plates <- unique(df_data$Plate.bar.code)
+  }
+
   params$plate_number <- length(plates)
   params$plates <- stringr::str_c(plates, collapse = ",")
   
@@ -265,7 +276,7 @@ separate_data_bg <- function(params){
   
   cat(file = stderr(), stringr::str_c("Analytes match = ", analyte_match), "\n")
   
-  cat(file = stderr(), "Function separate_data_bg...end", "\n")
+  cat(file = stderr(), "Function separate_data_bg...end", "\n\n")
 
   return(list(analyte_match, params))
     
@@ -279,8 +290,6 @@ report_template <- function(session, input, output, params){
   bg_report_template <- callr::r_bg(report_template_bg, args = list(params), stderr = str_c(params$error_path, "//error_report_template.txt"), supervise = TRUE)
   bg_report_template$wait()
   print_stderr("error_report_template.txt")
-
-  
     
   cat(file = stderr(), "Function report_template...end", "\n")
 }
@@ -300,11 +309,13 @@ report_template_bg <- function(params){
   
   df_report_colnames <- colnames(df_report)
   
+  # plate = plates[1]
   for (plate in plates) {
     
     #works for bileacids and q500, cases where multiple plates listed
-    df_plate <- df_info[grep(paste(plate, collapse="|"), df_info[[1]]),]
+    #????????df_plate <- df_info[grep(paste(plate, collapse="|"), df_info[[1]]),]
     df_plate <- df_info[grep(plate, df_info[[1]]),]
+    
     df_calc_lod <- df_plate[grep("calc", df_plate[[1]]),]
     df_op_lod <- df_plate[grep("from OP", df_plate[[1]]),]
     df_calc_lod <- as.data.frame(lapply(df_calc_lod, as.numeric))
@@ -328,13 +339,20 @@ report_template_bg <- function(params){
       
   }
   
-  
   df_lloq <- df_info[grep("LLOQ", df_info[[1]]),]
   df_uloq <- df_info[grep("ULOQ", df_info[[1]]),]
-    
-  #get column maxs from df_uloq
-  uloq_max <- apply(df_uloq[2:ncol(df_uloq)], 2, max)
-  lloq_min <- apply(df_lloq[2:ncol(df_lloq)], 2, min)
+  
+  #drop first column and set dataframe to numeric
+  df_lloq <- as.data.frame(lapply(df_lloq[2:ncol(df_lloq)], as.numeric))
+  df_uloq <- as.data.frame(lapply(df_uloq[2:ncol(df_uloq)], as.numeric))
+  
+  #get column maxs from df_uloq and mins from df_lloq
+  uloq_max <- apply(df_uloq, 2, max, na.rm = TRUE)
+  lloq_min <- apply(df_lloq, 2, min, na.rm = TRUE)
+
+  #replace Inf and -Inf with empty string
+  uloq_max[is.infinite(uloq_max)] <- ""
+  lloq_min[is.infinite(lloq_min)] <- ""
   
   col_name <- stringr::str_c("Lowest CS, uM")
   df_report_colnames <- c(df_report_colnames, col_name)
@@ -348,7 +366,7 @@ report_template_bg <- function(params){
   
   write_table_try("Report_template", df_report, params)
   
-  cat(file = stderr(), "Function report_template_bg...end", "\n")
+  cat(file = stderr(), "Function report_template_bg...end", "\n\n")
 }
 
 
@@ -366,7 +384,7 @@ replace_lod <- function(session, input, output, params){
   
   params <<- params
   
-  cat(file = stderr(), "Function replace_lod...end", "\n")
+  cat(file = stderr(), "Function replace_lod...end", "\n\n")
 }
 
 #---------------------------------------------------------------------
@@ -421,7 +439,7 @@ replace_lod_bg <- function(params){
   
   write_table_try("data_impute", df_final, params)
   
-  cat(file = stderr(), "Function replace_lod_bg...end", "\n")
+  cat(file = stderr(), "Function replace_lod_bg...end", "\n\n")
 }
 
 
@@ -439,7 +457,7 @@ qc_calc <- function(session, input, output, params){
   bg_qc_calc$wait()
   print_stderr("error_qc_calc.txt")
   
-  cat(file = stderr(), "Function qc_calc...end", "\n")
+  cat(file = stderr(), "Function qc_calc...end", "\n\n")
 }
 
 
@@ -481,7 +499,7 @@ qc_calc_bg <- function(params){
   
   write_table_try("QC_Report", df_qc_report, params)
   
-  cat(file = stderr(), "Function qc_calc_bg...end", "\n")
+  cat(file = stderr(), "Function qc_calc_bg...end", "\n\n")
 }
 
 
@@ -511,7 +529,7 @@ process_data <- function(session, input, output, params){
   
   params <<- params
   
-  cat(file = stderr(), "Function process_data...end", "\n")
+  cat(file = stderr(), "Function process_data...end", "\n\n")
 }
 
 #---------------------------------------------------------------------
@@ -534,7 +552,7 @@ process_data_bg <- function(params){
   #create table with material SPQC data for report
   spqc_report(df_report, params)
 
-  cat(file = stderr(), "Function process_data_bg...end", "\n")
+  cat(file = stderr(), "Function process_data_bg...end", "\n\n")
 }
 
 #---------------------------------------------------------------------
@@ -542,7 +560,7 @@ normalize_data <- function(df, df_report, material, params){
   cat(file = stderr(), "Function normalize_data...", "\n")
   # material = params$material_select
   
-  if (params$norm_select != "None") {
+  if (params$norm_select != "None" & params$plate_number > 1) {
     df_norm <- df[grep(params$norm_select, df$Sample.description),]
     #if using anything but SPQC, the material could be different
     if(params$norm_select == "SPQC") {
@@ -619,7 +637,7 @@ normalize_data <- function(df, df_report, material, params){
     
   }
    
-  cat(file = stderr(), "Function normalize_data...end", "\n")
+  cat(file = stderr(), "Function normalize_data...end", "\n\n")
 }
 
 #---------------------------------------------------------------------
@@ -674,7 +692,7 @@ spqc_report <- function(df_report, params){
     
   }
   
-  cat(file = stderr(), "Function spqc_report...end", "\n")
+  cat(file = stderr(), "Function spqc_report...end", "\n\n")
 }
 #---------------------------------------------------------------------
 #---------------------------------------------------------------------
@@ -693,7 +711,7 @@ spqc_missing_filter <- function(session, input, output, params){
 }
   
   
-  cat(file = stderr(), "Function spqc_missing_filter...end", "\n")
+  cat(file = stderr(), "Function spqc_missing_filter...end", "\n\n")
 }
 
 #---------------------------------------------------------------------
@@ -752,7 +770,7 @@ spqc_missing_filter_bg <- function(params, use_norm){
   
   write_table_try(table_name, df_material, params)
 
-  cat(file = stderr(), "Function spqc_missing_filter_bg...end", "\n")
+  cat(file = stderr(), "Function spqc_missing_filter_bg...end", "\n\n")
 }
 
 
@@ -785,7 +803,7 @@ final_excel <- function(session, input, output, params) {
   
   params <<- bg_excel$get_result()
   
-  cat(file = stderr(), "function Final_Excel...end", "\n")
+  cat(file = stderr(), "function Final_Excel...end", "\n\n")
   removeModal()
 }
 
@@ -826,7 +844,7 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
   
   if (input_excel_report) {
     addWorksheet(wb, "Sample Summary")
-    excel_df <- read_table_try("Report", params)
+    excel_df <- read_table_try("Report_template", params)
     writeData(wb, sheet = nextsheet, excel_df)
     nextsheet <- nextsheet + 1
   }
@@ -870,7 +888,11 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
         nextsheet <- nextsheet + 1
       }
       if (stringr::str_c("Filtered_", material) %in% db_tables) {
-        addWorksheet(wb, stringr::str_c("Filtered_", material))
+        sheetname <- stringr::str_c("Filtered_", material)
+        if (nchar(sheetname) > 31) {
+          sheetname <- substr(sheetname, 1, 31)
+        }
+        addWorksheet(wb, sheetname)
         excel_df <- read_table_try(stringr::str_c("Filtered_", material), params)
         writeData(wb, sheet = nextsheet, excel_df)
         nextsheet <- nextsheet + 1
@@ -879,13 +901,21 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
     
     if (input_excel_samples_norm) {
       if (stringr::str_c(params$norm_select, "_Norm_", material) %in% db_tables) {
-        addWorksheet(wb, stringr::str_c(params$norm_select, "_Norm_", material))
+        sheetname <- stringr::str_c(params$norm_select, "_Norm_", material)
+        if (nchar(sheetname) > 31) {
+          sheetname <- substr(sheetname, 1, 31)
+        }
+        addWorksheet(wb, sheetname)
         excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", material), params)
         writeData(wb, sheet = nextsheet, excel_df)
         nextsheet <- nextsheet + 1
       }
       if (stringr::str_c(params$norm_select, "_Filtered_Norm_", material) %in% db_tables) {
-        addWorksheet(wb, stringr::str_c(params$norm_select, "_Filtered_Norm_", material))
+        sheetname <- stringr::str_c(params$norm_select, "_Filtered_Norm_", material)
+        if (nchar(sheetname) > 31) {
+          sheetname <- substr(sheetname, 1, 31)
+        }
+        addWorksheet(wb, sheetname)
         excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), params)
         writeData(wb, sheet = nextsheet, excel_df)
         nextsheet <- nextsheet + 1
@@ -900,6 +930,7 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
 
   
   #archive code
+  cat(file = stderr(), "Archiving Code...", "\n")
   archive_path <- stringr::str_c(params$data_path, "/archive")
   params$archive_path <- create_dir(archive_path)
   #
@@ -910,18 +941,10 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
     file.copy(file, file_copy)
   }
     
-  cat(file = stderr(), "Function Final_Excel_bg...", "\n")
+  cat(file = stderr(), "Function Final_Excel_bg...", "\n\n")
   
   return(params)
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -956,7 +979,7 @@ load_archive_file <- function(session, input, output){
 
   database_path <- stringr::str_c(database_dir, "/", file_name)
 
-  cat(file = stderr(), "Function load_archive_file...end", "\n")
+  cat(file = stderr(), "Function load_archive_file...end", "\n\n")
   return(archive_zip)
 }
 
