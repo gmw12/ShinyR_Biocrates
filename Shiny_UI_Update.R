@@ -156,5 +156,7 @@ update_widgets <- function(session, input, output, params) {
 
   updateTextInput(session, "file_prefix", value = params$file_prefix)
   
+  updatePickerInput(session, "pca_plate_select_list", choices = unlist(strsplit(params$plates, ",")))
+  
  cat(file = stderr(), "Function - update_widgets...end", "\n")
 }

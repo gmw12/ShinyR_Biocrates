@@ -44,7 +44,8 @@ round_columns <- function(df, search_text, round_digits) {
 #---------------------------------------------------------------------
 simple_plate_name <- function(df) {
   cat(file = stderr(), "Function - simple_plate_name...", "\n")
-  # df <- df_data_raw
+  
+  #  df <- df_data_raw
   
   plates <- unique(df$Plate.bar.code)
   plates <- paste(plates, collapse = " | ")

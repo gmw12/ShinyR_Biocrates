@@ -94,7 +94,7 @@ create_data_table_bg <- function(params, table_name){
 #------------------------------------------------------------------------
 #load design table
 create_report_table <- function(session, input, output, params, table_name){
-  cat(file = stderr(), "Function create_report_table", "\n")
+  cat(file = stderr(), "Function create_report_table...", "\n")
   #showModal(modalDialog("Creating design table...", footer = NULL))
   
   bg_report_table <- callr::r_bg(create_report_table_bg, args = list(params, table_name), stderr = str_c(params$error_path, "//error_report_table.txt"), supervise = TRUE)

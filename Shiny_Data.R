@@ -526,7 +526,9 @@ process_data <- function(session, input, output, params){
   process_data_calc <- callr::r_bg(process_data_bg, args = list(params), stderr = str_c(params$error_path, "//process_data_calc.txt"), supervise = TRUE)
   process_data_calc$wait()
   print_stderr("process_data_calc.txt")
-  
+
+  updatePickerInput(session, "pca_plate_select_list", choices = unlist(strsplit(params$plates, ",")))
+
   params <<- params
   
   cat(file = stderr(), "Function process_data...end", "\n\n")

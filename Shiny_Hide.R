@@ -17,6 +17,15 @@ hide_enable <- function(session, input, output, params) {
     }
   })
   
+  observe({
+    if (input$pca_plate_select) {
+      shinyjs::show("pca_plate_select_list")
+    }else{
+      shinyjs::hide("pca_plate_select_list")
+    }
+  })
+  
+  
 
   cat(file = stderr(), "Function - hide_enable...end", "\n")
 }

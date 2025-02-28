@@ -281,6 +281,11 @@ interactive_pca2d <- function(session, input, output, params) {
    }
  }
  
+ if(input$pca_plate_select) {
+   selected_plates <- input$pca_plate_select_list
+   df <- df[df$Plate.bar.code %in% selected_plates,]
+ }
+ 
  if(input$pca_by_plate) {
   df$Sample.description <- stringr::str_c(df$Sample.description, "_", df$Submission.name)    
  }
@@ -288,6 +293,8 @@ interactive_pca2d <- function(session, input, output, params) {
  if(input$pca_spqc_only){
   df <- df[grep("SPQC", df$Sample.description),]
  }
+ 
+
  
  
  df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
