@@ -515,6 +515,7 @@ process_data <- function(session, input, output, params){
   params$spqc_filter_value <- input$spqc_filter_value
   params$missing_filter <- input$missing_filter
   params$missing_filter_value <- input$missing_filter_value
+  params$spqc_replace <- input$spqc_replace
   
   #check if params$material_list exists
   if (length(params$material_list) == 0) {
@@ -547,6 +548,15 @@ process_data_bg <- function(params){
   df_report <- read_table_try("Report_template", params)
 
   df_material <- df[grep(material, df$Material),]
+  
+  if(params$spqc_replace != "No"){
+    df_to_add <- df_to_add[grep(params$spqc_replace, df_to_add$Sample.description),]
+    if(nrow(df_to_add) == 0){
+      cat(file = stderr(), "No replacement SPQC data available...", "\n")
+    }
+    df_material <- rbind(df_material, df_to_add)
+  }
+  
   write_table_try(material, df_material, params)
   
   normalize_data(df, df_report, material, params)
@@ -660,7 +670,12 @@ spqc_report <- function(df_report, params){
     df <- read_table_try(params$material_select, params)
   }
   
-  df <- df[grep("SPQC", df$Sample.description),]
+  if(params$spqc_replace == "No"){
+    df <- df[grep("SPQC", df$Sample.description),]
+  }else {
+    df <- df[grep(params$spqc_replace, df$Sample.description),]
+  }
+  
   
   if(nrow(df) != 0){
     #list of plates
