@@ -263,6 +263,8 @@ interactive_pca2d <- function(session, input, output, params) {
  df <- read_table_try(table_name, params)
  df_report <- read_table_try("Report_template", params)
  
+ #tdf <<- df # df<-tdf
+ 
  updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(input$material_select, " PCA2D"))
  
  df$Sample.description[grep("SPQC", df$Sample.description)] <- "SPQC"
@@ -300,9 +302,6 @@ interactive_pca2d <- function(session, input, output, params) {
   }
  }
  
-
- 
- 
  df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
  df_data <- as.data.frame(sapply(df_data, as.numeric))
  df_plot <- cbind(df$Sample.description, df_data)
@@ -312,7 +311,24 @@ interactive_pca2d <- function(session, input, output, params) {
  color_list <- c("red", "blue", "orange", "purple", "darkgreen", "black", "brown", "cyan", "magenta", "yellow", "green", "pink", "grey", "lightblue", "darkred", "darkblue", "lightgreen", "orchid", "darkorange", "maroon", "yellow4", "darkcyan", "darkmagenta", "yellow2", "royalblue", "purple1", "skyblue", "deeppink")
  color_list <- color_list[1:length(unique(df$Sample.description))]
  
- x_pca <- prcomp(df_plot[,-1], scale=TRUE)
+ 
+  x_pca <- try(prcomp(df_plot[,-1], scale=TRUE))
+ 
+  if (class(x_pca) == "try-error") {
+    cat(file = stderr(), "pca try error 1", "\n")
+    x_pca <- try(prcomp(df_plot[,-1], scale=TRUE, center=TRUE))
+  }
+  
+  if (class(x_pca) == "try-error") {
+    cat(file = stderr(), "pca try error 2", "\n")
+    x_pca <- try(prcomp(df_plot[,-1], scale=FALSE))
+  }
+
+  if (class(x_pca) == "try-error") {
+    cat(file = stderr(), "pca try error 3", "\n")
+    x_pca <- try(prcomp(df_plot[,-1], scale=FALSE, center=TRUE, tol = 0.1))
+  }
+ 
  test_this <- df_plot[,1]
 
  x_gr <- factor(unlist(test_this))
