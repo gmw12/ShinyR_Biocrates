@@ -550,7 +550,7 @@ process_data_bg <- function(params){
   df_material <- df[grep(material, df$Material),]
   
   if(params$spqc_replace != "No"){
-    df_to_add <- df_to_add[grep(params$spqc_replace, df_to_add$Sample.description),]
+    df_to_add <- df[grep(params$spqc_replace, df$Sample.description),]
     if(nrow(df_to_add) == 0){
       cat(file = stderr(), "No replacement SPQC data available...", "\n")
     }
