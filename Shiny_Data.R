@@ -549,6 +549,8 @@ process_data_bg <- function(params){
 
   df_material <- df[grep(material, df$Material),]
   
+  df_material <- df_material[grep("Sample", df_material$Sample.type),]
+  
   if(params$spqc_replace != "No"){
     df_to_add <- df[grep(params$spqc_replace, df$Sample.description),]
     if(nrow(df_to_add) == 0){

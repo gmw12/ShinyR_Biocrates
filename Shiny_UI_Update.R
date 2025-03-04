@@ -149,6 +149,7 @@ update_widgets <- function(session, input, output, params) {
   }
   
   updateSelectInput(session, "norm_select", selected = params$norm_select)
+  updateSelectInput(session, "spqc_replace", selected = params$spqc_replace)
   updateCheckboxInput(session, "spqc_filter", value = params$spqc_filter)
   updateNumericInput(session, "spqc_filter_value", value = params$spqc_filter_value)
   updateCheckboxInput(session, "missing_filter", value = params$missing_filter)

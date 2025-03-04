@@ -291,7 +291,13 @@ interactive_pca2d <- function(session, input, output, params) {
  }
  
  if(input$pca_spqc_only){
-  df <- df[grep("SPQC", df$Sample.description),]
+  df_spqc <- df[grep("SPQC", df$Sample.description),]
+  if (nrow(df_spqc) > 0) {
+    df <- df_spqc
+  }
+  else {
+    cat(file = stderr(), "No SPQC samples in data", "\n")
+  }
  }
  
 
