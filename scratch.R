@@ -252,3 +252,27 @@ for (i in 1:length(plates)) {
     ) )
 }
 
+
+list_tables(params)
+df_analytes <- read_table('Analytes', params)
+tumor <- read_table('tumor_tissue', params)
+plasma <- read_table('plasma', params)
+
+f_tumor <- read_table('Filtered_tumor_tissue', params)
+f_plasma <- read_table('Filtered_plasma', params)
+
+col_num <- which(colnames(tumor) == df_analytes$Name[1])
+colnames(tumor[,col_num:ncol(tumor)]) <- df_analytes$Name
+
+df_info <- tumor[,1:(col_num-1)]
+df_data <- tumor[,col_num:ncol(tumor)]
+df_filter <- f_tumor[,col_num:ncol(f_tumor)]
+
+#find which columns are missing in the filtered data
+missing_cols <- setdiff(colnames(df_data), colnames(df_filter))
+#find column numbers in df_data for missing_cols
+missing_col_nums <- which(colnames(df_data) %in% missing_cols)
+
+colnames(df_data) <- df_analytes$Name
+filtered_names <- df_analytes$Name[-missing_col_nums]
+colnames(df_filter) <- filtered_names

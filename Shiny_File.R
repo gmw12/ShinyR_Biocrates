@@ -314,3 +314,38 @@ get_max_rowid <- function(table_name, params) {
   cat(file = stderr(), "Function - get_max_rowid...end", "\n")
   return(max_row)
 }
+
+#----------------------------------------------------------------------------------------
+fix_header <- function(df, df_analytes) {
+  cat(file = stderr(), "Function - fix_header...", "\n")
+  
+  col_num <- which(colnames(df) == df_analytes$Name[1])
+  df_info <- df[,1:(col_num-1)]
+  df_data <- df[,col_num:ncol(df)]
+  
+  colnames(df_data) <- df_analytes$Name
+  
+  cat(file = stderr(), "Function - fix_header...end", "\n\n") 
+  return(cbind(df_info, df_data))
+}
+
+#----------------------------------------------------------------------------------------
+fix_header_filter <- function(df, df_filter, df_analytes) {
+  cat(file = stderr(), "Function - fix_header_filter...", "\n")
+  
+  col_num <- which(colnames(df) == df_analytes$Name[1])
+  df_info <- df[,1:(col_num-1)]
+  df_data <- df[,col_num:ncol(df)]
+  df_filter <- df_filter[,col_num:ncol(df_filter)]
+  
+  #find which columns are missing in the filtered data
+  missing_cols <- setdiff(colnames(df_data), colnames(df_filter))
+  #find column numbers in df_data for missing_cols
+  missing_col_nums <- which(colnames(df_data) %in% missing_cols)
+  
+  filtered_names <- df_analytes$Name[-missing_col_nums]
+  colnames(df_filter) <- filtered_names
+  
+  cat(file = stderr(), "Function - fix_header_filter...end", "\n\n") 
+  return(cbind(df_info, df_filter))
+}

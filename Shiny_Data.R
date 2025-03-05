@@ -238,7 +238,7 @@ separate_data_bg <- function(params){
   df_data <- df[data_rows,]
   df_info <- df[-data_rows,]
   
-  df_analytes <- read_table_try("analytes", params)  
+  df_analytes <- read_table_try("Analytes", params)  
   
   #find colnumber for df_analytes$Abbreviation[1]
   col_num <- which(colnames(df) == df_analytes$Name[1])
@@ -835,6 +835,8 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
   
   require(openxlsx)
   source('Shiny_File.R')
+  
+  df_analytes <- read_table_try("Analytes", params)
 
   filename <- stringr::str_c(params$data_path, "/", input_excel_filename)
   nextsheet <- 1
@@ -850,6 +852,7 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
   if (input_excel_raw_data_no_indicator) {
     addWorksheet(wb, "Status Removed")
     excel_df <- read_table_try("data_no_indicators", params)
+    excel_df <- fix_header(excel_df, df_analytes)
     writeData(wb, sheet = nextsheet, excel_df)
     nextsheet <- nextsheet + 1
   }
@@ -857,6 +860,7 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
   if (input_excel_impute_data) {
     addWorksheet(wb, "Imputed Data")
     excel_df <- read_table_try("data_impute", params)
+    excel_df <- fix_header(excel_df, df_analytes)
     writeData(wb, sheet = nextsheet, excel_df)
     nextsheet <- nextsheet + 1
   }
@@ -864,6 +868,8 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
   if (input_excel_report) {
     addWorksheet(wb, "Sample Summary")
     excel_df <- read_table_try("Report_template", params)
+    #remove 'R_colnames" from excel_df by name
+    excel_df <- excel_df[,-which(colnames(excel_df) == "R_colnames")]
     writeData(wb, sheet = nextsheet, excel_df)
     nextsheet <- nextsheet + 1
   }
@@ -883,13 +889,15 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
         excel_df_all <- excel_df
       }else{
         if (params$data_source == "BileAcid") {
-          excel_df_all <- rbind(excel_df_all, excel_df[,-c(1:3)])
+          excel_df_all <- cbind(excel_df_all, excel_df[,-c(1:3)])
         }else{
-        excel_df_all <- rbind(excel_df_all, excel_df[,-c(1:5)])
+        excel_df_all <- cbind(excel_df_all, excel_df[,-c(1:5)])
         }
       }
     }
     addWorksheet(wb, "SPQC Summary")
+    #remove 'R_colnames" from excel_df by name
+    excel_df_all <- excel_df_all[,-which(colnames(excel_df_all) == "R_colnames")]
     writeData(wb, sheet = nextsheet, excel_df_all)
     nextsheet <- nextsheet + 1
   }
@@ -903,7 +911,8 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
       if (material %in% db_tables) {
         addWorksheet(wb, material)
         excel_df <- read_table_try(material, params)
-        writeData(wb, sheet = nextsheet, excel_df)
+        excel_df2 <- fix_header(excel_df, df_analytes)
+        writeData(wb, sheet = nextsheet, excel_df2)
         nextsheet <- nextsheet + 1
       }
       if (stringr::str_c("Filtered_", material) %in% db_tables) {
@@ -912,8 +921,9 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
           sheetname <- substr(sheetname, 1, 31)
         }
         addWorksheet(wb, sheetname)
-        excel_df <- read_table_try(stringr::str_c("Filtered_", material), params)
-        writeData(wb, sheet = nextsheet, excel_df)
+        excel_filter_df <- read_table_try(stringr::str_c("Filtered_", material), params)
+        excel_filter_df <- fix_header_filter(excel_df, excel_filter_df, df_analytes)
+        writeData(wb, sheet = nextsheet, excel_filter_df)
         nextsheet <- nextsheet + 1
         }
     }
@@ -926,7 +936,8 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
         }
         addWorksheet(wb, sheetname)
         excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", material), params)
-        writeData(wb, sheet = nextsheet, excel_df)
+        excel_df2 <- fix_header(excel_df, df_analytes)
+        writeData(wb, sheet = nextsheet, excel_df2)
         nextsheet <- nextsheet + 1
       }
       if (stringr::str_c(params$norm_select, "_Filtered_Norm_", material) %in% db_tables) {
@@ -935,7 +946,8 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
           sheetname <- substr(sheetname, 1, 31)
         }
         addWorksheet(wb, sheetname)
-        excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), params)
+        excel_filter_df <- read_table_try(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), params)
+        excel_filter_df <- fix_header_filter(excel_df, excel_filter_df, df_analytes)
         writeData(wb, sheet = nextsheet, excel_df)
         nextsheet <- nextsheet + 1
       }
