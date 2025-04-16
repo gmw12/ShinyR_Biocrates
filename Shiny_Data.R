@@ -494,6 +494,9 @@ qc_calc_bg <- function(params){
       #calc the %CV from columns of df_plate
       df_acc <- round(100 * (df_mean/qc_std_levels), digits = 1)
       df_qc_report[stringr::str_c(qc, " ", plate, " Accuracy")] <- df_acc
+      
+      df_cv <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
+      df_qc_report[stringr::str_c(qc, " ", plate, " CV")] <- df_cv
     }
   }
   
