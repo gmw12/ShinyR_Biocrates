@@ -315,13 +315,15 @@ report_template_bg <- function(params){
     #works for bileacids and q500, cases where multiple plates listed
     #????????df_plate <- df_info[grep(paste(plate, collapse="|"), df_info[[1]]),]
     df_plate <- df_info[grep(plate, df_info[[1]]),]
+    df_lod <- df_plate[grep("LOD", df_plate[[1]]),]
     
-    df_calc_lod <- df_plate[grep("calc", df_plate[[1]]),]
-    df_op_lod <- df_plate[grep("from OP", df_plate[[1]]),]
+    df_calc_lod <- df_lod[grep("calc", df_plate[[1]]),]
+    df_op_lod <- df_lod[grep("from OP", df_plate[[1]]),]
     df_calc_lod <- as.data.frame(lapply(df_calc_lod, as.numeric))
     df_op_lod <- as.data.frame(lapply(df_op_lod, as.numeric))
     df_calc_lod[is.na(df_calc_lod)] <- 0
     df_op_lod[is.na(df_op_lod)] <- 0
+    
     #consolidate values from flow inject and lcms (does nothing for bileacid)
     calc_lod <- apply(df_calc_lod[2:ncol(df_calc_lod)], 2, max)
     op_lod <- apply(df_op_lod[2:ncol(df_op_lod)], 2, max)
