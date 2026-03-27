@@ -570,7 +570,8 @@ process_data_bg <- function(params){
   
   #create table with material SPQC data for report
   spqc_report(df_report, params)
-
+  spqc_summary_report(material, params)
+  
   cat(file = stderr(), "Function process_data_bg...end", "\n\n")
 }
 
@@ -719,6 +720,61 @@ spqc_report <- function(df_report, params){
   cat(file = stderr(), "Function spqc_report...end", "\n\n")
 }
 #---------------------------------------------------------------------
+
+spqc_summary_report <- function(df_report, params){
+  cat(file = stderr(), "Function spqc_summary_report...", "\n")
+  
+  #creating QC summary table
+  df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
+  #subset df where column names = "Class", "Sub_platform", and any column with "CV"
+  qc_cols <- grep("CV", colnames(df), value = TRUE)
+  
+  qc_summary <- df[,c("Class", "Sub_platform", qc_cols)]
+  
+  qc_summary <- qc_summary |>
+    group_by(Class, Sub_platform) |>
+    summarise(
+      across(everything(), list(
+        n    = ~sum(!is.na(.) & !is.nan(.) & . != 0),
+        mean = ~mean(.[!is.na(.) & !is.nan(.) & . != 0], na.rm = TRUE)
+      )),
+      .groups = "drop"
+    )
+  
+  # Reorder so each _n column is immediately before its _mean column
+  cv_cols <- grep("CV", colnames(qc_summary), value = TRUE)
+  paired <- c(rbind(
+    grep("_n$",    cv_cols, value = TRUE),
+    grep("_mean$", cv_cols, value = TRUE)
+  ))
+  
+  qc_summary <- qc_summary |>
+    select(Class, Sub_platform, all_of(paired))
+  
+  df_analytes <- read_table_try('Analytes', params)
+  
+  targeted_counts <- df_analytes |>
+    select(Class, Sub_platform) |>
+    group_by(Class, Sub_platform) |>
+    summarise(
+      Targeted = n(),
+      .groups = "drop"
+    )
+  
+  qc_summary <- qc_summary |>
+    left_join(targeted_counts, by = c("Class", "Sub_platform")) |>
+    relocate(Targeted, .after = Sub_platform)
+    
+    
+  write_table_try(stringr::str_c("SPQC_Summary_Report_", material), qc_summary, params)
+    
+  
+  
+  cat(file = stderr(), "Function spqc_summary_report...end", "\n\n")
+}
+
+
+
 #---------------------------------------------------------------------
 
 spqc_missing_filter <- function(session, input, output, params){

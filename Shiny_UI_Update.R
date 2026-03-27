@@ -59,6 +59,8 @@ ui_render_sample_tables <- function(session, input, output, params) {
   
   create_data_table(session, input, output, params, stringr::str_c("SPQC_Report_", params$material_select), "SPQC")
   
+  create_data_table(session, input, output, params, stringr::str_c("SPQC_Summary_Report_", params$material_select), "SPQC_Summary")
+  
   cat(file = stderr(), "Function ui_render_sample_tables...end", "\n")
 }
 #-------------------------------------------------------------------------------------------

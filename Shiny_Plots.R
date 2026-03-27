@@ -263,8 +263,6 @@ interactive_pca2d <- function(session, input, output, params) {
  df <- read_table_try(table_name, params)
  df_report <- read_table_try("Report_template", params)
  
- #tdf <<- df # df<-tdf
- 
  updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(input$material_select, " PCA2D"))
  
  df$Sample.description[grep("SPQC", df$Sample.description)] <- "SPQC"
@@ -301,6 +299,9 @@ interactive_pca2d <- function(session, input, output, params) {
     cat(file = stderr(), "No SPQC samples in data", "\n")
   }
  }
+ 
+ save(df, file = "z1"); save(df_report, file = "z2")
+ #   load("z1"); load("z2")
  
  df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
  df_data <- as.data.frame(sapply(df_data, as.numeric))

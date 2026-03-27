@@ -96,7 +96,7 @@ interactive_boxplot <- function(session, input, output, df, namex, color_list, c
 
 interactive_pca2d <- function(session, input, output, df, namex, color_list, groupx, comp_name, plot_number)
 {
-  #save(df, file="pcadf"); save(groupx, file="pca_groupx")
+  save(df, file="pcadf"); save(groupx, file="pca_groupx")
   #load(file="pcadf"); load(file="pca_groupx")
   df_sd <-apply(df, 1, sd) 
   

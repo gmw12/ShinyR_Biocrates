@@ -237,6 +237,14 @@ body <- dashboardBody(
                                        )
                               ),
                               
+                              tabPanel("SPQC Summary Data",
+                                       column(width =12, offset =0,
+                                              hr(),
+                                              tags$head(tags$style("#spqc_summary_material_table{color: blue; font-size: 12px;}")),
+                                              DT::dataTableOutput("spqc_summary_material_table", width ='100%')
+                                       )
+                              ),
+                              
                               tabPanel("SPQC Barplot",
                                        column(width =12, offset =0,
                                               hr(),

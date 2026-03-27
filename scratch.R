@@ -276,3 +276,43 @@ missing_col_nums <- which(colnames(df_data) %in% missing_cols)
 colnames(df_data) <- df_analytes$Name
 filtered_names <- df_analytes$Name[-missing_col_nums]
 colnames(df_filter) <- filtered_names
+
+#-----------------------------------------------------------------------------------------------------------
+#creating QC summary table
+df <- df_spqc_report
+#subset df where column names = "Class", "Sub_platform", and any column with "CV"
+qc_cols <- grep("CV", colnames(df), value = TRUE)
+
+qc_summary <- df[,c("Class", "Sub_platform", qc_cols)]
+
+qc_summary <- qc_summary %>%
+  group_by(Class, Sub_platform) %>%
+  summarise(
+    across(everything(), list(
+      n    = ~sum(!is.na(.) & !is.nan(.) & . != 0),
+      mean = ~mean(.[!is.na(.) & !is.nan(.) & . != 0], na.rm = TRUE)
+    )),
+    .groups = "drop"
+  )
+
+# Reorder so each _n column is immediately before its _mean column
+cv_cols <- grep("CV", colnames(qc_summary), value = TRUE)
+paired <- c(rbind(
+  grep("_n$",    cv_cols, value = TRUE),
+  grep("_mean$", cv_cols, value = TRUE)
+))
+
+qc_summary <- qc_summary |>
+  select(Class, Sub_platform, all_of(paired))
+
+targeted_counts <- df_analytes %>%
+  select(Class, Sub_platform) %>%
+  group_by(Class, Sub_platform) %>%
+  summarise(
+    Targeted = n(),
+    .groups = "drop"
+  )
+
+qc_summary <- qc_summary %>%
+  left_join(targeted_counts, by = c("Class", "Sub_platform")) %>%
+  relocate(Targeted, .after = Sub_platform)

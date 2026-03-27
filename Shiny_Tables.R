@@ -34,6 +34,10 @@ create_data_table <- function(session, input, output, params, table_name, input_
     output$spqc_material_table <- DT::renderDataTable(data_table_DT) 
   }
   
+  if (input_table == "SPQC_Summary"){
+    output$spqc_summary_material_table <- DT::renderDataTable(data_table_DT) 
+  }
+  
   cat(file = stderr(), "Function create_data_table...end", "\n")
 }
 
