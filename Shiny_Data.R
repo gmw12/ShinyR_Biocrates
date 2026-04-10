@@ -736,14 +736,21 @@ spqc_summary_report <- function(material, params) {
   
   df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
   
+  params$spqc_filter
+  params$spqc_filter_value
+  
   base_cv_cols <- grep("CV", colnames(df), value = TRUE)
   
   qc_summary <- df[, c("Class", "Sub_platform", base_cv_cols)] |>
     group_by(Class, Sub_platform) |>
     summarise(
       across(everything(), list(
-        n    = ~sum(!is.na(.) & !is.nan(.) & . != 0),
-        mean = ~round(mean(.[!is.na(.) & !is.nan(.) & . != 0], na.rm = TRUE),2)
+        n    = ~{
+          valid <- !is.na(.) & !is.nan(.) & . != 0
+          if (isTRUE(params$spqc_filter)) valid <- valid & . <= params$spqc_filter_value
+          sum(valid)
+        },
+        mean = ~round(mean(.[!is.na(.) & !is.nan(.) & . != 0], na.rm = TRUE), 2)
       )),
       .groups = "drop"
     )
