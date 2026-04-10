@@ -224,6 +224,7 @@ separate_data <- function(session, input, output, params){
 
 separate_data_bg <- function(params){
   cat(file = stderr(), "Function separate_data_bg...", "\n")
+  library(dplyr)
   source('Shiny_File.R')
   source('Shiny_Misc_Functions.R')
   
@@ -261,6 +262,12 @@ separate_data_bg <- function(params){
   
   write_table_try("data_start", df_data, params)
   write_table_try("data_info", df_info, params)
+  
+  #create lookup table for table barcode and names
+  plate_info <- df_data |>
+    select(Plate.bar.code, Submission.name) |>
+    distinct()
+  write_table_try("plate_info", plate_info, params)
   
   #check that analytes and order match
   test_data <- colnames(df[(ncol(df)-nrow(df_analytes)+1):ncol(df)])
@@ -719,56 +726,70 @@ spqc_report <- function(df_report, params){
   
   cat(file = stderr(), "Function spqc_report...end", "\n\n")
 }
-#---------------------------------------------------------------------
 
-spqc_summary_report <- function(df_report, params){
+
+#-------------------------------------------------------------------
+spqc_summary_report <- function(material, params) {
   cat(file = stderr(), "Function spqc_summary_report...", "\n")
   
-  #creating QC summary table
+  library(dplyr)
+  
   df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
-  #subset df where column names = "Class", "Sub_platform", and any column with "CV"
-  qc_cols <- grep("CV", colnames(df), value = TRUE)
   
-  qc_summary <- df[,c("Class", "Sub_platform", qc_cols)]
+  base_cv_cols <- grep("CV", colnames(df), value = TRUE)
   
-  qc_summary <- qc_summary |>
+  qc_summary <- df[, c("Class", "Sub_platform", base_cv_cols)] |>
     group_by(Class, Sub_platform) |>
     summarise(
       across(everything(), list(
         n    = ~sum(!is.na(.) & !is.nan(.) & . != 0),
-        mean = ~mean(.[!is.na(.) & !is.nan(.) & . != 0], na.rm = TRUE)
+        mean = ~round(mean(.[!is.na(.) & !is.nan(.) & . != 0], na.rm = TRUE),2)
       )),
       .groups = "drop"
     )
   
-  # Reorder so each _n column is immediately before its _mean column
-  cv_cols <- grep("CV", colnames(qc_summary), value = TRUE)
-  paired <- c(rbind(
-    grep("_n$",    cv_cols, value = TRUE),
-    grep("_mean$", cv_cols, value = TRUE)
-  ))
+  # Interleave _n and _mean columns, preserving original CV column order
+  paired <- as.vector(sapply(base_cv_cols, function(col) {
+    c(paste0(col, "_n"), paste0(col, "_mean"))
+  }))
   
-  qc_summary <- qc_summary |>
-    select(Class, Sub_platform, all_of(paired))
-  
-  df_analytes <- read_table_try('Analytes', params)
+  df_analytes <- read_table_try("Analytes", params)
   
   targeted_counts <- df_analytes |>
     select(Class, Sub_platform) |>
     group_by(Class, Sub_platform) |>
-    summarise(
-      Targeted = n(),
-      .groups = "drop"
-    )
+    summarise(Targeted = n(), .groups = "drop")
   
   qc_summary <- qc_summary |>
+    select(Class, Sub_platform, all_of(paired)) |>
     left_join(targeted_counts, by = c("Class", "Sub_platform")) |>
     relocate(Targeted, .after = Sub_platform)
-    
-    
-  write_table_try(stringr::str_c("SPQC_Summary_Report_", material), qc_summary, params)
-    
   
+  
+  clean_cv_name <- function(col) {
+    col <- sub("^X\\.CV\\.", "", col)
+    col <- gsub("\\.\\.\\.", "/", col)
+    col <- gsub("(?<![0-9])\\.(?![0-9])", " ", col, perl = TRUE)
+    trimws(col)
+  }
+  
+  extract_descriptor <- function(clean_name) {
+    sub(" SPQC.*$", "", clean_name)
+  }
+  
+  clean_names <- sapply(base_cv_cols, clean_cv_name)
+  descriptors <- sapply(clean_names, extract_descriptor)
+  
+  rename_map <- setNames(
+    c(paste0(base_cv_cols, "_n"), paste0(base_cv_cols, "_mean")),
+    c(paste0("n ", descriptors),
+      paste0("CV_mean ", descriptors))
+  )
+  
+  qc_summary <- qc_summary |>
+    rename(all_of(rename_map))
+  
+  write_table_try(stringr::str_c("SPQC_Summary_Report_", material), qc_summary, params)
   
   cat(file = stderr(), "Function spqc_summary_report...end", "\n\n")
 }
@@ -870,12 +891,14 @@ final_excel <- function(session, input, output, params) {
   input_excel_report <- input$excel_report
   input_excel_qc_report <- input$excel_qc_report
   input_excel_spqc_report <- input$excel_spqc_report
+  input_excel_spqc_summary_report <- input$excel_spqc_summary_report
   input_excel_samples_raw <- input$excel_samples_raw
   input_excel_samples_norm <- input$excel_samples_norm
   input_excel_filename <- input$excel_filename
   
   arg_list <- list(params, input_excel_raw_data, input_excel_raw_data_no_indicator, input_excel_impute_data, 
-                   input_excel_report, input_excel_qc_report, input_excel_spqc_report, input_excel_samples_raw, input_excel_samples_norm, input_excel_filename)
+                   input_excel_report, input_excel_qc_report, input_excel_spqc_report, input_excel_spqc_summary_report, 
+                   input_excel_samples_raw, input_excel_samples_norm, input_excel_filename)
   
   bg_excel <- callr::r_bg(func = final_excel_bg, args = arg_list, stderr = stringr::str_c(params$error_path, "//error_finalexcel.txt"), supervise = TRUE)
   bg_excel$wait()
@@ -891,7 +914,8 @@ final_excel <- function(session, input, output, params) {
 #----------------------------------------------------------------------------------------
 # create final excel documents
 final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no_indicator, input_excel_impute_data, 
-                           input_excel_report, input_excel_qc_report, input_excel_spqc_report, input_excel_samples_raw, input_excel_samples_norm, input_excel_filename) {
+                           input_excel_report, input_excel_qc_report, input_excel_spqc_report, input_excel_spqc_summary_report, 
+                           input_excel_samples_raw, input_excel_samples_norm, input_excel_filename) {
   cat(file = stderr(), "Function Final_Excel_bg...", "\n")
   
   require(openxlsx)
@@ -963,7 +987,21 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
     nextsheet <- nextsheet + 1
   }
   
-
+  if (input_excel_spqc_summary_report) {
+    materials <- unique(unlist(strsplit(params$material_list, ",")))
+    for (material in materials) {
+      excel_df <- read_table_try(stringr::str_c("SPQC_Summary_Report_", material), params)
+      if (material == materials[1]) {
+        excel_df_all <- excel_df
+      }else{
+        excel_df_all <- cbind(excel_df_all, excel_df[,-c(1:2)])
+      }
+    }
+    addWorksheet(wb, "SPQC Summary Report")
+    writeData(wb, sheet = nextsheet, excel_df_all)
+    nextsheet <- nextsheet + 1
+  }
+  
   materials <- unique(unlist(strsplit(params$material_list, ",")))
   db_tables <- list_tables(params)
   for (material in materials) {

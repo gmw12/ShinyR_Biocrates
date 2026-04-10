@@ -64,6 +64,7 @@ df_data_raw <- read_table('data_raw', params)
 df_data_start <- read_table('data_start', params)
 df_data_status <- read_table('data_status', params)
 df_info <- read_table('data_info', params)
+df_plate_info <- read_table('plate_info', params)
 df_data_start <- read_table('data_start', params)
 df_no_ind <- read_table_try("data_no_indicators", params)
 df_plasma <- read_table('plasma', params)
@@ -73,6 +74,8 @@ df_data_impute <- read_table('data_impute', params)
 df_spqc_factor <- read_table('SPQC_Norm_Factor_brain_tissue', params)
 df_spqc_report <- read_table("SPQC_Report_brain_tissue" , params)
 df_spqc_report <- read_table("SPQC_Report_plasma" , params)
+
+df_spqc_summary_report <- read_table("SPQC_Summary_Report_brain_tissue" , params)
 #-------------------------------------------------------------------------------------------
 #subset df_plasma where Sample.description contains SPQC
 df_report <- read_table('QC_Report', params)

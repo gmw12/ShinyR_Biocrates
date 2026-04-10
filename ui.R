@@ -327,6 +327,7 @@ body <- dashboardBody(
                                               checkboxInput("excel_report", label = "Sample Info Report (LOD)", value = TRUE),
                                               checkboxInput("excel_qc_report", label = "QC Report", value = TRUE),
                                               checkboxInput("excel_spqc_report", label = "SPQC Report", value = TRUE),
+                                              checkboxInput("excel_spqc_summary_report", label = "SPQC Summary Report", value = TRUE),
                                               checkboxInput("excel_samples_raw", label = "Analyzed Raw Materials", value = TRUE),
                                               checkboxInput("excel_samples_norm", label = "Analyzed Normalized Materials", value = FALSE),
                                               textInput("excel_filename", label = "File Name", value = "final_data_return.xlsx", width = 250),
