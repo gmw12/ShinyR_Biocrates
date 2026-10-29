@@ -1105,7 +1105,8 @@ load_archive_file <- function(session, input, output){
   
   cat(file = stderr(), stringr::str_c("unzip file to database_dir:  ", database_dir), "\n")
   utils::unzip(zipfile = archive_zip, exdir = database_dir)
-  load(file = stringr::str_c(database_dir, "/params"))
+  #load archived params into the global env so the rest of the app sees them
+  params <<- loadRData(stringr::str_c(database_dir, "/params"))
   
   temp_files <- list.files(database_dir)
   if (length(temp_files) == 0) {
@@ -1114,7 +1115,17 @@ load_archive_file <- function(session, input, output){
   
   cat(file = stderr(), stringr::str_c("files in database_dir:  ", temp_files), "\n")
 
-  database_path <- stringr::str_c(database_dir, "/", file_name)
+  #point params at the unzipped database (archive may come from another location)
+  params$database_dir <<- database_dir
+  params$database_path <<- stringr::str_c(database_dir, "/", basename(params$database_path))
+  cat(file = stderr(), stringr::str_c("database_path --->", params$database_path), "\n")
+
+  #re-point output paths to the archive's directory (archive is saved in data_path), keep existing contents
+  params$data_path <<- archive_path
+  params$error_path <<- create_dir_only(stringr::str_c(archive_path, "Error/"))
+  params$plot_path <<- create_dir_only(stringr::str_c(archive_path, "Plots/"))
+  params$backup_path <<- create_dir_only(stringr::str_c(archive_path, "Backup/"))
+  cat(file = stderr(), stringr::str_c("data_path --->", params$data_path), "\n")
 
   cat(file = stderr(), "Function load_archive_file...end", "\n\n")
   return(archive_zip)

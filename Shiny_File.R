@@ -245,10 +245,10 @@ write_table <- function(table_name, df, params){
 #----------------------------------------------------------------------------------------
 write_table_try <- function(table_name, df, params){
   for (i in 1:10) {
-    df <- try(write_table(table_name, df, params))
-    if (class(df) != "write-error"){
+    result <- try(write_table(table_name, df, params))
+    if (!inherits(result, "try-error")){
       i <- 10
-      return(df)
+      return(result)
     }else{
       cat(file = stderr(), "Write table error...", "\n")
       Sys.sleep(0.5)

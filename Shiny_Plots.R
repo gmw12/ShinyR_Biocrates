@@ -2,7 +2,7 @@ cat(file = stderr(), "Shiny_PCA.R", "\n")
 
 
 #------------------------------------------------------------------------------------------------------
-create_qc_plots <- function(sesion, input, output, params){
+create_qc_plots <- function(session, input, output, params){
   cat(file = stderr(), "Function create_qc_plots", "\n")
   showModal(modalDialog("Creating Plots...", footer = NULL))
   
@@ -30,7 +30,7 @@ create_qc_plots <- function(sesion, input, output, params){
 }
 
 #------------------------------------------------------------------------------------------------------
-create_spqc_plots <- function(sesion, input, output, params){
+create_spqc_plots <- function(session, input, output, params){
   cat(file = stderr(), "Function create_spqc_plots", "\n")
   showModal(modalDialog("Creating Plots...", footer = NULL))
   

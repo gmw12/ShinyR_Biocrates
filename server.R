@@ -168,7 +168,7 @@ shinyServer(function(session, input, output) {
     
     create_qc_table(session, input, output, params)
     
-    create_qc_plots(sesion, input, output, params)
+    create_qc_plots(session, input, output, params)
     
     cat(file = stderr(), "qc_calc clicked...end", "\n\n\n")
     removeModal()
@@ -185,7 +185,7 @@ shinyServer(function(session, input, output) {
     
     process_data(session, input, output, params)
     
-    create_spqc_plots(sesion, input, output, params)
+    create_spqc_plots(session, input, output, params)
     
     spqc_missing_filter(session, input, output, params)
     
