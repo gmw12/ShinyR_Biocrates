@@ -876,21 +876,22 @@ spqc_report <- function(df_report, params){
     
     #set df_material to numeric
     df_all <- as.data.frame(lapply(df_all, as.numeric))
-    mean_df_spqc_material <- round(colMeans(df_all, na.rm = TRUE), digits = 5)
+    mean_df_spqc_material <- colMeans(df_all, na.rm = TRUE)
     
-    #calc the %CV from columns of df_spqc_material
+    #calc the %CV from columns of df_spqc_material (unrounded mean)
     cv_df_spqc_material <- round(100 * (apply(df_all, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
-    df_spqc_report[stringr::str_c("Mean ", params$material_select, " SPQC(uM)")] <- mean_df_spqc_material
+    df_spqc_report[stringr::str_c("Mean ", params$material_select, " SPQC(uM)")] <- round(mean_df_spqc_material, digits = 5)
     df_spqc_report[stringr::str_c("%CV ", params$material_select, " SPQC(uM)")] <- cv_df_spqc_material
     
     for (plate in spqc_plates) {
-      df_plate <- df[grep(plate, df$Plate.bar.code),]
+      df_plate <- df[df$Plate.bar.code == plate,]
       #isolate data only
       df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
-      mean_plate_df_spqc_material <- round(colMeans(df_plate, na.rm = TRUE), digits = 5)
-      cv_plate_df_spqc_material <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
-      df_spqc_report[stringr::str_c("Mean ", plate, " ", params$material_select, " SPQC(uM)")] <- mean_plate_df_spqc_material
+      mean_plate_df_spqc_material <- colMeans(df_plate, na.rm = TRUE)
+      #plate %CV uses the plate mean
+      cv_plate_df_spqc_material <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / mean_plate_df_spqc_material), digits = 2)
+      df_spqc_report[stringr::str_c("Mean ", plate, " ", params$material_select, " SPQC(uM)")] <- round(mean_plate_df_spqc_material, digits = 5)
       df_spqc_report[stringr::str_c("%CV ", plate, " ", params$material_select, " SPQC(uM)")] <- cv_plate_df_spqc_material
     }
     
@@ -1025,7 +1026,7 @@ spqc_missing_filter_bg <- function(params, use_norm){
         
   if (params$missing_filter) {
     #filter df_start for material in Materials
-    df_material_start <- df_start[grep(params$material_select, df_start$Material),]
+    df_material_start <- df_start[df_start$Material == params$material_select,]
     df_material_start <- df_material_start[,(ncol(df_material_start)-nrow(df_report)+1):ncol(df_material_start)]
     #replace 0 values with "< LOD"
     df_material_start[df_material_start == 0] <- "< LOD"
