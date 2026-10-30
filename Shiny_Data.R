@@ -526,6 +526,15 @@ qc_calc <- function(session, input, output, params){
   bg_qc_calc$wait()
   print_stderr("error_qc_calc.txt")
   
+  if (bg_qc_calc$get_exit_status() != 0) {
+    shinyalert("Oops!", "QC calculation failed, see error_qc_calc.txt", type = "error")
+  } else {
+    qc_problems <- bg_qc_calc$get_result()
+    if (length(qc_problems) > 0) {
+      shinyalert("QC check", stringr::str_c(qc_problems, collapse = "\n"), type = "warning")
+    }
+  }
+  
   cat(file = stderr(), "Function qc_calc...end", "\n\n")
 }
 
@@ -536,29 +545,47 @@ qc_calc_bg <- function(params){
   cat(file = stderr(), "Function qc_calc_bg...", "\n")
   source('Shiny_File.R')
   
-  df <- read_table_try("data_impute", params)
+  #use data before LOD imputation, values < LOD are excluded from QC stats and counted
+  df <- read_table_try("data_start", params)
   df_report_template <- read_table_try("Report_template", params)
   df_qc_info <- read_table_try("QC", params)
   
   df_qc_report <- df_report_template[,1:2]
+  qc_problems <- c()
   
-  qc_list <- c("QC1", "QC2", "QC3")
- 
-  #subset of data with "QC" in Sample.description
-  df_qc <- df[grep("QC", df$Sample.identification),]
+  #QC level name in config -> Sample.type in WebIDQ export
+  qc_list <- c("QC1" = "QC Level 1", "QC2" = "QC Level 2", "QC3" = "QC Level 3")
+  
+  #expected values must line up with the analytes (compare names without punctuation)
+  qc_names <- gsub("[^A-Za-z0-9]", "", colnames(df_qc_info)[3:ncol(df_qc_info)])
+  analyte_names <- gsub("[^A-Za-z0-9]", "", make.names(df_report_template$Name))
+  if (length(qc_names) != length(analyte_names) || any(qc_names != analyte_names)) {
+    stop("QC expected values in config do not match the analyte list")
+  }
+  
+  df_qc <- df[df$Sample.type %in% qc_list,]
   plates <- unique(df_qc$Plate.bar.code)
   
-  for (qc in qc_list) {
-    qc_level <- df_qc_info[grep(qc, df_qc_info$Expected.values),]
-    qc_std_levels <- unlist(qc_level[3:ncol(qc_level)]) 
+  for (qc in names(qc_list)) {
+    qc_level <- df_qc_info[df_qc_info$Expected.values == qc,]
+    if (nrow(qc_level) != 1) { stop(stringr::str_c("Config QC sheet needs exactly one ", qc, " row")) }
+    qc_std_levels <- as.numeric(unlist(qc_level[3:ncol(qc_level)]))
     df_qc_report[stringr::str_c(qc, " Level (uM)")] <- qc_std_levels
     for (plate in plates) {
-      df_plate <- df_qc[grep(plate, df_qc$Plate.bar.code),]
-      df_plate <- df_plate[grep(qc, df_plate$Sample.identification),]
-      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report_template)+1):ncol(df_plate)]
-      #set df_plate to numeric
-      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      df_plate <- df_qc[df_qc$Plate.bar.code == plate & df_qc$Sample.type == qc_list[[qc]],]
+      if (nrow(df_plate) == 0) {
+        qc_problems <- c(qc_problems, stringr::str_c(qc, " missing on plate ", plate))
+      }
+      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report_template)+1):ncol(df_plate), drop = FALSE]
+      #0 or "< LOD" are below LOD, set to NA
+      below_lod <- as.data.frame(lapply(df_plate, function(x) {
+        x_num <- suppressWarnings(as.numeric(x))
+        (!is.na(x) & grepl("LOD", x)) | (!is.na(x_num) & x_num == 0)
+      }))
+      df_plate <- suppressWarnings(as.data.frame(lapply(df_plate, as.numeric)))
+      df_plate[as.matrix(below_lod)] <- NA
       df_mean <- round(colMeans(df_plate, na.rm = TRUE), digits = 5)
+      df_mean[is.nan(df_mean)] <- NA
       df_qc_report[stringr::str_c(qc, " ", plate, " Mean (uM)")] <- df_mean
       #calc the %CV from columns of df_plate
       df_acc <- round(100 * (df_mean/qc_std_levels), digits = 1)
@@ -566,12 +593,17 @@ qc_calc_bg <- function(params){
       
       df_cv <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
       df_qc_report[stringr::str_c(qc, " ", plate, " CV")] <- df_cv
+      
+      df_qc_report[stringr::str_c(qc, " ", plate, " n < LOD")] <- colSums(below_lod)
     }
   }
   
   write_table_try("QC_Report", df_qc_report, params)
   
+  for (problem in qc_problems) { cat(file = stderr(), stringr::str_c("QC problem: ", problem), "\n") }
+  
   cat(file = stderr(), "Function qc_calc_bg...end", "\n\n")
+  return(qc_problems)
 }
 
 

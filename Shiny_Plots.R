@@ -77,8 +77,8 @@ qc_grouped_plot_bg <- function(plot_title, params) {
     test <- df |> dplyr::select(contains("Accuracy")) 
     lower_limit <- 100 - params$qc_acc
     upper_limit <- 100 + params$qc_acc
-    test[test < lower_limit | test > upper_limit] <- 0
-    test[test > 0] <- 1
+    #1 = within range, 0 = outside, NA = all replicates < LOD (not counted)
+    test <- as.data.frame(lapply(test, function(x) as.numeric(x >= lower_limit & x <= upper_limit)))
     lower_limit_text <- stringr::str_c("Accuracy ", lower_limit, "-", upper_limit)
     upper_limit_text <- stringr::str_c("Accuracy Outside Range")
     file_name <- stringr::str_c(params$plot_path, plot_title, "_barplot.png")
@@ -99,8 +99,8 @@ qc_grouped_plot_bg <- function(plot_title, params) {
   
   
   
-  good <- colSums(test)
-  bad <- nrow(test) - good
+  good <- colSums(test == 1, na.rm = TRUE)
+  bad <- colSums(test == 0, na.rm = TRUE)
   
   data_plot = data.frame(matrix(vector(), ncol(test)*2, 3,
                          dimnames=list(c(), c("Sample", "QC", "Count"))),
