@@ -297,6 +297,15 @@ report_template <- function(session, input, output, params){
   bg_report_template <- callr::r_bg(report_template_bg, args = list(params), stderr = str_c(params$error_path, "//error_report_template.txt"), supervise = TRUE)
   bg_report_template$wait()
   print_stderr("error_report_template.txt")
+  
+  if (bg_report_template$get_exit_status() != 0) {
+    shinyalert("Oops!", "LOD extraction failed, see error_report_template.txt", type = "error")
+  } else {
+    lod_problems <- bg_report_template$get_result()
+    if (length(lod_problems) > 0) {
+      shinyalert("LOD check", stringr::str_c(lod_problems, collapse = "\n"), type = "warning")
+    }
+  }
     
   cat(file = stderr(), "Function report_template...end", "\n")
 }
@@ -312,32 +321,49 @@ report_template_bg <- function(params){
   df_info <- read_table_try("data_info", params)
   df_report <- read_table_try("Analytes", params)
 
+  if (ncol(df_info) - 1 != nrow(df_report)) {
+    stop(stringr::str_c("data_info has ", ncol(df_info) - 1, " analyte columns but config has ", nrow(df_report), " analytes"))
+  }
   df_report$R_colnames <- colnames(df_info[2:ncol(df_info)])
   
   df_report_colnames <- colnames(df_report)
+  lod_problems <- c()
+  
+  #parse LOD row labels into barcodes, e.g. "LOD (calc.) 1053482453-1 [uM]" -> "1053482453-1"
+  calc_barcode <- stringr::str_match(df_info[[1]], "^LOD \\(calc\\.\\) (.+?) \\[")[,2]
+  op_barcode <- stringr::str_match(df_info[[1]], "^LOD \\(from OP\\) (.+?) \\[")[,2]
+  
+  #numeric matrix of LOD rows for the barcodes, max per analyte (NA if no values)
+  lod_max <- function(barcode_col, barcodes) {
+    rows <- which(barcode_col %in% barcodes)
+    if (length(rows) == 0) { return(rep(NA_real_, ncol(df_info) - 1)) }
+    lod_values <- suppressWarnings(sapply(df_info[rows, -1, drop = FALSE], as.numeric))
+    lod_values <- matrix(lod_values, nrow = length(rows))
+    apply(lod_values, 2, function(x) if (all(is.na(x))) NA_real_ else max(x, na.rm = TRUE))
+  }
   
   # plate = plates[1]
   for (plate in plates) {
     
-    #works for bileacids and q500, cases where multiple plates listed
-    #????????df_plate <- df_info[grep(paste(plate, collapse="|"), df_info[[1]]),]
-    df_plate <- df_info[grep(plate, df_info[[1]]),]
-    df_lod <- df_plate[grep("LOD", df_plate[[1]]),]
+    #q500 plates pair FIA and LC barcodes ("A | B"), bile acid plates have one barcode
+    barcodes <- trimws(unlist(stringr::str_split(plate, stringr::fixed("|"))))
     
-    df_calc_lod <- df_lod[grep("calc", df_plate[[1]]),]
-    df_op_lod <- df_lod[grep("from OP", df_plate[[1]]),]
-    df_calc_lod <- as.data.frame(lapply(df_calc_lod, as.numeric))
-    df_op_lod <- as.data.frame(lapply(df_op_lod, as.numeric))
-    df_calc_lod[is.na(df_calc_lod)] <- 0
-    df_op_lod[is.na(df_op_lod)] <- 0
+    if (!any(c(calc_barcode, op_barcode) %in% barcodes)) {
+      lod_problems <- c(lod_problems, stringr::str_c("Plate ", plate, ": no LOD rows found"))
+    }
     
-    #consolidate values from flow inject and lcms (does nothing for bileacid)
-    calc_lod <- apply(df_calc_lod[2:ncol(df_calc_lod)], 2, max)
-    op_lod <- apply(df_op_lod[2:ncol(df_op_lod)], 2, max)
+    #consolidate values from flow inject and lcms barcodes, use calc LOD and fall back to LOD from OP
+    calc_lod <- lod_max(calc_barcode, barcodes)
+    op_lod <- lod_max(op_barcode, barcodes)
+    use_op <- is.na(calc_lod) | calc_lod == 0
+    calc_lod[use_op] <- op_lod[use_op]
     
-    #if value in calc_lod is 0 then replace with value from op_lod
-    for (i in 1:length(calc_lod)) {
-      if (calc_lod[i] == 0) { calc_lod[i] <- op_lod[i] }
+    missing_lod <- which(is.na(calc_lod) | calc_lod == 0)
+    if (length(missing_lod) > 0) {
+      lod_problems <- c(lod_problems, stringr::str_c("Plate ", plate, ": ", length(missing_lod), " analytes with no LOD (",
+                                                     stringr::str_c(head(df_report$Name[missing_lod], 5), collapse = ", "),
+                                                     if (length(missing_lod) > 5) ", ..." else "", ")"))
+      calc_lod[is.na(calc_lod)] <- 0
     }
     
     col_name <- stringr::str_c("LOD_", plate, ", uM")
@@ -375,7 +401,10 @@ report_template_bg <- function(params){
   
   write_table_try("Report_template", df_report, params)
   
+  for (problem in lod_problems) { cat(file = stderr(), stringr::str_c("LOD problem: ", problem), "\n") }
+  
   cat(file = stderr(), "Function report_template_bg...end", "\n\n")
+  return(lod_problems)
 }
 
 
@@ -390,6 +419,15 @@ replace_lod <- function(session, input, output, params){
   bg_replace_lod <- callr::r_bg(replace_lod_bg, args = list(params), stderr = str_c(params$error_path, "//error_replace_lod.txt"), supervise = TRUE)
   bg_replace_lod$wait()
   print_stderr("error_replace_lod.txt")
+  
+  if (bg_replace_lod$get_exit_status() != 0) {
+    shinyalert("Oops!", "LOD replacement failed, see error_replace_lod.txt", type = "error")
+  } else {
+    lod_problems <- bg_replace_lod$get_result()
+    if (length(lod_problems) > 0) {
+      shinyalert("LOD check", stringr::str_c(lod_problems, collapse = "\n"), type = "warning")
+    }
+  }
   
   params <<- params
   
@@ -424,16 +462,35 @@ replace_lod_bg <- function(params){
   }
   
   
+  #map each Plate.bar.code value to its LOD column in df_report by exact barcode match
+  #q500 plate groups pair FIA and LC barcodes ("A | B"); standards may list only one barcode of the group
+  split_barcodes <- function(x) { trimws(unlist(stringr::str_split(x, stringr::fixed("|")))) }
+  plates <- unlist(stringr::str_split(params$plates, ","))
+  lod_problems <- c()
+  plate_lod_col <- integer(0)
+  
+  for (row_plate in unique(df_info$Plate.bar.code)) {
+    row_barcodes <- split_barcodes(row_plate)
+    plate_match <- plates[sapply(plates, function(plate) all(row_barcodes %in% split_barcodes(plate)))]
+    lod_col <- integer(0)
+    if (length(plate_match) == 1) {
+      lod_col_name <- stringr::str_c("LOD_", plate_match, ", uM")
+      #column names may be mangled by make.names when read back from the database
+      lod_col <- which(colnames(df_report) %in% c(lod_col_name, make.names(lod_col_name)))
+    }
+    if (length(lod_col) == 1) {
+      plate_lod_col[row_plate] <- lod_col
+    } else {
+      lod_problems <- c(lod_problems, stringr::str_c("Plate ", row_plate, ": no unique LOD column, < LOD values not replaced"))
+    }
+  }
+  
   for (r in 1:nrow(df_data)) {
     #find columns in df_data that contain 'LOD'
     find_lod_cols <- which(grepl("LOD", df_data[r,]), arr.ind = TRUE)
-    plate <- gsub("-", ".", df_info$Plate.bar.code[r])
-    plate <- gsub(" ", ".", plate)
-    plate <- gsub("\\|", ".", plate)
-    #find column in df_report that contains 'LOD' and plate
-    find_plate_lod_col <- which(grepl(plate, colnames(df_report)), arr.ind = TRUE )
+    find_plate_lod_col <- plate_lod_col[df_info$Plate.bar.code[r]]
     #loop through columns and replace values with values from df_report
-    if (length(find_lod_cols) >=1 ) { 
+    if (length(find_lod_cols) >= 1 && !is.na(find_plate_lod_col)) { 
       for (c in find_lod_cols) {
         if (params$fixed_lod){
           df_data[r,c] <- as.numeric(df_report[c,find_plate_lod_col], digits = 5)
@@ -448,7 +505,10 @@ replace_lod_bg <- function(params){
   
   write_table_try("data_impute", df_final, params)
   
+  for (problem in lod_problems) { cat(file = stderr(), stringr::str_c("LOD problem: ", problem), "\n") }
+  
   cat(file = stderr(), "Function replace_lod_bg...end", "\n\n")
+  return(lod_problems)
 }
 
 

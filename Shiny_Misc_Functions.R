@@ -55,46 +55,33 @@ simple_plate_name <- function(df) {
   plates <- plates[plates != "|"]
   plates <- unique(plates)
   
-  common_left_str <- ""
-  common <- TRUE
-  i <- 1
-  
-  while (common) {
-    test_str <- substr(plates[1], 1, i)
-    cat(file = stderr(), stringr::str_c("test_str=", test_str), "\n")
-    for (j in 1:length(plates)) {
-      if (substr(plates[j], 1, i) != test_str) {
-        cat(file = stderr(), stringr::str_c("i=",i," j=",j," test_str=", substr(plates[j], 1, i)), "\n")
-        common <- FALSE
-        break
-      }
-    }
-    if (common) {common_left_str <- test_str}
-    i <- i + 1
+  #need 2+ plates to find a common prefix/suffix (a single plate would loop forever and simplify to "")
+  if (length(plates) < 2) {
+    cat(file = stderr(), "Function - simple_plate_name...single plate, names unchanged", "\n\n")
+    return(df)
   }
   
+  min_len <- min(nchar(plates))
   
-  common_right_str <- ""
-  common <- TRUE
+  #longest prefix shared by all plates
   i <- 0
+  while (i < min_len && length(unique(substr(plates, 1, i + 1))) == 1) { i <- i + 1 }
+  common_left_len <- i
   
-  while (common) {
-    test_str <- substr(plates[1], nchar(plates[1])-i, nchar(plates[1]))
-    cat(file = stderr(), stringr::str_c("test_str=", test_str), "\n")
-    for (j in 1:length(plates)) {
-      if (substr(plates[j], nchar(plates[1])-i, nchar(plates[1])) != test_str) {
-        cat(file = stderr(), stringr::str_c("i=",i," j=",j," test_str=", substr(plates[1], nchar(plates[j])-i, nchar(plates[1]))), "\n")
-        common <- FALSE
-        break
-      }
-    }
-    if (common) {common_right_str <- test_str}
-    i <- i + 1
+  #longest suffix shared by all plates (not overlapping the prefix)
+  i <- 0
+  while (i < min_len - common_left_len && length(unique(substr(plates, nchar(plates) - i, nchar(plates)))) == 1) { i <- i + 1 }
+  common_right_len <- i
+  
+  cat(file = stderr(), stringr::str_c("common prefix=", substr(plates[1], 1, common_left_len),
+                                      " common suffix=", substr(plates[1], nchar(plates[1]) - common_right_len + 1, nchar(plates[1]))), "\n")
+  
+  new_plate <- substr(plates, common_left_len + 1, nchar(plates) - common_right_len)
+  
+  if (any(new_plate == "") || any(duplicated(new_plate))) {
+    cat(file = stderr(), "Function - simple_plate_name...simplified names not unique, names unchanged", "\n\n")
+    return(df)
   }
-  
-  
-  new_plate <- gsub(common_left_str, "", plates)
-  new_plate <- gsub(common_right_str, "", new_plate)
   
   for (i in 1:length(plates)) {
     df <- df |>
