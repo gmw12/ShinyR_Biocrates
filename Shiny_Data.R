@@ -650,13 +650,29 @@ process_data <- function(session, input, output, params){
   }else{
     params$material_list <- stringr::str_c(params$material_list, ",", input$material_select)
   }
+  
+  #remember the normalization used for each processed material ("material=norm,...")
+  material_norms <- material_norm_list(params)
+  material_norms[input$material_select] <- params$norm_select
+  params$material_norms <- stringr::str_c(names(material_norms), "=", material_norms, collapse = ",")
 
   updatePickerInput(session, "pca_plate_select_list", choices = unlist(strsplit(params$plates, ",")))
+  updateSelectInput(session, "pca_material_select", choices = names(material_norms), selected = input$material_select)
 
   params <<- params
   
   cat(file = stderr(), "Function process_data...end", "\n\n")
   return(TRUE)
+}
+
+#---------------------------------------------------------------------
+#processed materials and the normalization used for each, as a named vector c(material = norm)
+material_norm_list <- function(params){
+  if (length(params$material_norms) == 0 || is.na(params$material_norms) || params$material_norms == "") {
+    return(c())
+  }
+  pairs <- strsplit(unlist(strsplit(params$material_norms, ",")), "=")
+  return(stats::setNames(sapply(pairs, `[`, 2), sapply(pairs, `[`, 1)))
 }
 
 #---------------------------------------------------------------------

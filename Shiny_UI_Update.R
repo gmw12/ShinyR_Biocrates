@@ -161,5 +161,8 @@ update_widgets <- function(session, input, output, params) {
   
   updatePickerInput(session, "pca_plate_select_list", choices = unlist(strsplit(params$plates, ",")))
   
+  #PCA can only use processed materials
+  updateSelectInput(session, "pca_material_select", choices = names(material_norm_list(params)))
+  
  cat(file = stderr(), "Function - update_widgets...end", "\n")
 }

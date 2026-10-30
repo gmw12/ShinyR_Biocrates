@@ -241,40 +241,52 @@ norm_line_bg <- function(params) {
 interactive_pca2d <- function(session, input, output, params) {
   cat(file = stderr(), "interactive_pca2d..." , "\n")
   
+  #only processed materials are listed in pca_material_select, use the normalization that material was processed with
+  material <- input$pca_material_select
+  material_norms <- material_norm_list(params)
+  if (length(material) == 0 || material == "" || !(material %in% names(material_norms))) {
+    shinyalert("PCA", "No processed material selected. Process a material on this tab first.", type = "error")
+    return()
+  }
+  norm_select <- material_norms[[material]]
+  if (input$norm_option == 2 && norm_select == "None") {
+    shinyalert("PCA", stringr::str_c(material, " was processed without normalization, select Raw or process it again with normalization."), type = "error")
+    return()
+  }
+  
   if(input$data_type == 1){
     if(input$norm_option == 1){
-      table_name <- input$material_select
+      table_name <- material
     }else{
-      table_name <- stringr::str_c(params$norm_select, "_Norm_", params$material_select)
+      table_name <- stringr::str_c(norm_select, "_Norm_", material)
     }
   }else{
     if(input$norm_option == 1){
-      table_name <- stringr::str_c("Filtered_", params$material_select)  
+      table_name <- stringr::str_c("Filtered_", material)  
     }else{
-      table_name <- stringr::str_c(params$norm_select, "_Filtered_Norm_", params$material_select)  
+      table_name <- stringr::str_c(norm_select, "_Filtered_Norm_", material)  
     }
   }
   
  cat(file = stderr(), str_c("table name = ", table_name), "\n")  
+ if (!(table_name %in% list_tables(params))) {
+   shinyalert("PCA", stringr::str_c("Table ", table_name, " not found. Process ", material, " again."), type = "error")
+   return()
+ }
  df <- read_table_try(table_name, params)
  df_report <- read_table_try("Report_template", params)
  
- updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(input$material_select, " PCA2D"))
+ updateTextInput(session, "stats_pca2d_title", value = stringr::str_c(material, " PCA2D"))
  
- df$Sample.description[grep("SPQC", df$Sample.description)] <- "SPQC"
- df$Sample.description[grep("NIST", df$Sample.description)] <- "NIST"
- df$Sample.description[grep("Golden West", df$Sample.description)] <- "Golden_West"
- match_list <- c("SPQC", "NIST", "Golden_West")
- #df$Sample.description[grep("XXXX", df$Sample.description)] <- "Sample"
- df$Sample.description[-grep(paste(match_list, collapse="|"), df$Sample.description)] <- "Sample"
+ #group samples: SPQC, NIST, Golden_West, everything else is Sample
+ group <- rep("Sample", nrow(df))
+ group[grepl("SPQC", df$Sample.description)] <- "SPQC"
+ group[grepl("NIST", df$Sample.description)] <- "NIST"
+ group[grepl("Golden West", df$Sample.description)] <- "Golden_West"
+ df$Sample.description <- group
 
  if(input$remove_gw_nist) {
-   if (any(grepl("Golden_West", df$Sample.description))) {
-     df <- df[-grep("Golden_West", df$Sample.description),]
-   }
-   if (any(grepl("NIST", df$Sample.description))) {
-     df <- df[-grep("NIST", df$Sample.description),]
-   }
+   df <- df[!(df$Sample.description %in% c("Golden_West", "NIST")),]
  }
  
  if(input$pca_plate_select) {
@@ -296,55 +308,42 @@ interactive_pca2d <- function(session, input, output, params) {
   }
  }
  
- save(df, file = "z1"); save(df_report, file = "z2")
- #   load("z1"); load("z2")
+ if (nrow(df) < 3) {
+   shinyalert("PCA", stringr::str_c("PCA needs at least 3 samples, ", nrow(df), " selected. Check plate selection and options."), type = "error")
+   return()
+ }
  
  df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
- df_data <- as.data.frame(sapply(df_data, as.numeric))
- df_plot <- cbind(df$Sample.description, df_data)
+ df_data <- as.data.frame(lapply(df_data, function(x) suppressWarnings(as.numeric(x))))
+ 
+ #scaled PCA needs complete, non-constant analytes
+ drop_cols <- sapply(df_data, function(x) any(is.na(x)) || stats::sd(x) == 0)
+ if (any(drop_cols)) {
+   cat(file = stderr(), stringr::str_c("PCA: ", sum(drop_cols), " analytes with missing or constant values not used"), "\n")
+   df_data <- df_data[, !drop_cols, drop = FALSE]
+ }
+ if (ncol(df_data) < 2) {
+   shinyalert("PCA", "PCA needs at least 2 analytes with complete, non-constant values.", type = "error")
+   return()
+ }
  
  namex <- stringr::str_c(df$Sample.bar.code, "_", df$Sample.description, "_", df$Submission.name)
  
+ x_gr <- factor(df$Sample.description)
  color_list <- c("red", "blue", "orange", "purple", "darkgreen", "black", "brown", "cyan", "magenta", "yellow", "green", "pink", "grey", "lightblue", "darkred", "darkblue", "lightgreen", "orchid", "darkorange", "maroon", "yellow4", "darkcyan", "darkmagenta", "yellow2", "royalblue", "purple1", "skyblue", "deeppink")
- color_list <- color_list[1:length(unique(df$Sample.description))]
+ if (nlevels(x_gr) > length(color_list)) {
+   color_list <- grDevices::rainbow(nlevels(x_gr))
+ }
+ color_list <- color_list[1:nlevels(x_gr)]
  
+ x_pca <- prcomp(df_data, center = TRUE, scale. = TRUE)
  
-  x_pca <- try(prcomp(df_plot[,-1], scale=TRUE))
- 
-  if (class(x_pca) == "try-error") {
-    cat(file = stderr(), "pca try error 1", "\n")
-    x_pca <- try(prcomp(df_plot[,-1], scale=TRUE, center=TRUE))
-  }
-  
-  if (class(x_pca) == "try-error") {
-    cat(file = stderr(), "pca try error 2", "\n")
-    x_pca <- try(prcomp(df_plot[,-1], scale=FALSE))
-  }
-
-  if (class(x_pca) == "try-error") {
-    cat(file = stderr(), "pca try error 3", "\n")
-    x_pca <- try(prcomp(df_plot[,-1], scale=FALSE, center=TRUE, tol = 0.1))
-  }
- 
- test_this <- df_plot[,1]
-
- x_gr <- factor(unlist(test_this))
  cat(file=stderr(), "interactive_pca2d...2" , "\n")
- summary(x_gr)
  df_out <- as.data.frame(x_pca$x)
- #df_out_test <<- df_out
- df_xgr <- data.frame(x_gr)
- #df_xgr_test <<- df_xgr
- #df_xgr$x_gr <- as.character(df_xgr$x_gr)
   
- cat(file=stderr(), "interactive_pca2d...3" , "\n")
- hover_data <- data.frame(cbind(namex, df_out[[input$stats_pca2d_x]], df_out[[input$stats_pca2d_y]]), stringsAsFactors = FALSE  )
- colnames(hover_data) <- c("Sample", "get(input$stats_pca2d_x)", "get(input$stats_pca2d_y)")
- hover_data$`get(input$stats_pca2d_x)` <- as.numeric(hover_data$`get(input$stats_pca2d_x)`)
- hover_data$`get(input$stats_pca2d_y)` <- as.numeric(hover_data$`get(input$stats_pca2d_y)`)
-  
-  #hover_data_test <<- hover_data
   create_stats_pca2d <- reactive({
+    validate(need(all(c(input$stats_pca2d_x, input$stats_pca2d_y) %in% colnames(df_out)),
+                  stringr::str_c("Only ", ncol(df_out), " principal components for this selection, choose another axis")))
     ggplot(df_out, aes(x=get(input$stats_pca2d_x), y=get(input$stats_pca2d_y), color=x_gr )) +
       geom_point(alpha=0.5, size=input$stats_pca2d_dot_size) +
       theme(legend.title=element_blank()) +
@@ -366,7 +365,7 @@ interactive_pca2d <- function(session, input, output, params) {
   
   output$download_stats_pca2d <- downloadHandler(
     file = function(){
-      stringr::str_c("stats_pca2d_", params$material_select, ".png", collapse = " ")
+      stringr::str_c("stats_pca2d_", material, ".png", collapse = " ")
     },
     content = function(file){
       req(create_stats_pca2d())
@@ -376,6 +375,10 @@ interactive_pca2d <- function(session, input, output, params) {
   
   output$hover_pca2d_info <- renderUI({
     hover <- input$plot_pca2d_hover
+    req(all(c(input$stats_pca2d_x, input$stats_pca2d_y) %in% colnames(df_out)))
+    #hover positions for the axes currently shown
+    hover_data <- data.frame(Sample = namex, x = df_out[[input$stats_pca2d_x]], y = df_out[[input$stats_pca2d_y]])
+    colnames(hover_data) <- c("Sample", "get(input$stats_pca2d_x)", "get(input$stats_pca2d_y)")
     point <- nearPoints(hover_data, hover, threshold = 5, maxpoints = 1, addDist = TRUE)
     if (nrow(point) == 0) return(NULL)
     
