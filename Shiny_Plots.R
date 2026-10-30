@@ -316,10 +316,10 @@ interactive_pca2d <- function(session, input, output, params) {
  df_data <- df |> dplyr::select(any_of(df_report$R_colnames))
  df_data <- as.data.frame(lapply(df_data, function(x) suppressWarnings(as.numeric(x))))
  
- #scaled PCA needs complete, non-constant analytes
- drop_cols <- sapply(df_data, function(x) any(is.na(x)) || stats::sd(x) == 0)
+ #scaled PCA needs complete (finite, e.g. no Infinity values), non-constant analytes
+ drop_cols <- sapply(df_data, function(x) !all(is.finite(x)) || stats::sd(x) == 0)
  if (any(drop_cols)) {
-   cat(file = stderr(), stringr::str_c("PCA: ", sum(drop_cols), " analytes with missing or constant values not used"), "\n")
+   cat(file = stderr(), stringr::str_c("PCA: ", sum(drop_cols), " analytes with missing, infinite or constant values not used"), "\n")
    df_data <- df_data[, !drop_cols, drop = FALSE]
  }
  if (ncol(df_data) < 2) {

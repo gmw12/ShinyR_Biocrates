@@ -379,7 +379,8 @@ fix_header_filter <- function(df, df_filter, df_analytes) {
   cat(file = stderr(), "Function - fix_header_filter...", "\n")
   
   col_num <- which(colnames(df) == df_analytes$Name[1])
-  df_info <- df[,1:(col_num-1)]
+  #sample info from the filtered table itself (rows can differ if the material was processed again)
+  df_info <- df_filter[,1:(col_num-1)]
   df_data <- df[,col_num:ncol(df)]
   df_filter <- df_filter[,col_num:ncol(df_filter)]
   

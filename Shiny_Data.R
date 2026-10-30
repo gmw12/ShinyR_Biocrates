@@ -621,6 +621,9 @@ process_data <- function(session, input, output, params){
   params$missing_filter_value <- input$missing_filter_value
   params$spqc_replace <- input$spqc_replace
   
+  #normalization needs 2+ plates (norm_select is hidden for single plate data but can keep an old value)
+  if (params$plate_number <= 1) { params$norm_select <- "None" }
+  
   #stop before processing if the material/settings cannot be processed (e.g. kit QC only materials)
   material_errors <- check_material(params)
   if (length(material_errors) > 0) {
@@ -933,6 +936,14 @@ spqc_summary_report <- function(material, params) {
   
   base_cv_cols <- grep("CV", colnames(df), value = TRUE)
   
+  #bile acid config has no Class/Sub_platform, use the Class row of the export (one value per analyte)
+  if (!("Class" %in% colnames(df))) {
+    df_info <- read_table_try("data_info", params)
+    class_row <- unlist(df_info[df_info[[1]] == "Class", -1][1,])
+    df$Class <- if (length(class_row) == nrow(df)) class_row else ""
+  }
+  if (!("Sub_platform" %in% colnames(df))) { df$Sub_platform <- "" }
+  
   qc_summary <- df[, c("Class", "Sub_platform", base_cv_cols)] |>
     group_by(Class, Sub_platform) |>
     summarise(
@@ -952,9 +963,8 @@ spqc_summary_report <- function(material, params) {
     c(paste0(col, "_n"), paste0(col, "_mean"))
   }))
   
-  df_analytes <- read_table_try("Analytes", params)
-  
-  targeted_counts <- df_analytes |>
+  #number of analytes in each Class/Sub_platform (one report row per analyte)
+  targeted_counts <- df |>
     select(Class, Sub_platform) |>
     group_by(Class, Sub_platform) |>
     summarise(Targeted = n(), .groups = "drop")
@@ -1092,7 +1102,11 @@ final_excel <- function(session, input, output, params) {
   bg_excel$wait()
   print_stderr("error_finalexcel.txt")
   
-  params <<- bg_excel$get_result()
+  if (bg_excel$get_exit_status() != 0) {
+    shinyalert("Oops!", "Creating the Excel file failed, see error_finalexcel.txt", type = "error")
+  } else {
+    params <<- bg_excel$get_result()
+  }
   
   cat(file = stderr(), "function Final_Excel...end", "\n\n")
   removeModal()
