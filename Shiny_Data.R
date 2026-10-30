@@ -910,7 +910,7 @@ spqc_summary_report <- function(material, params) {
   
   library(dplyr)
   
-  df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
+  df <- read_table_try(stringr::str_c("SPQC_Report_", material), params, check_names = FALSE)
   
   params$spqc_filter
   params$spqc_filter_value
@@ -949,19 +949,8 @@ spqc_summary_report <- function(material, params) {
     relocate(Targeted, .after = Sub_platform)
   
   
-  clean_cv_name <- function(col) {
-    col <- sub("^X\\.CV\\.", "", col)
-    col <- gsub("\\.\\.\\.", "/", col)
-    col <- gsub("(?<![0-9])\\.(?![0-9])", " ", col, perl = TRUE)
-    trimws(col)
-  }
-  
-  extract_descriptor <- function(clean_name) {
-    sub(" SPQC.*$", "", clean_name)
-  }
-  
-  clean_names <- sapply(base_cv_cols, clean_cv_name)
-  descriptors <- sapply(clean_names, extract_descriptor)
+  #"%CV <plate> <material> SPQC(uM)" -> "<plate> <material>"
+  descriptors <- sub(" SPQC\\(uM\\)$", "", sub("^%CV ", "", base_cv_cols))
   
   rename_map <- setNames(
     c(paste0(base_cv_cols, "_n"), paste0(base_cv_cols, "_mean")),
@@ -1105,54 +1094,54 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
   source('Shiny_File.R')
   
   df_analytes <- read_table_try("Analytes", params)
+  #original export header names, used to restore readable sample info headers
+  raw_names <- list_fields("data_raw", params)
 
   filename <- stringr::str_c(params$data_path, "/", input_excel_filename)
-  nextsheet <- 1
   wb <- createWorkbook()
+  
+  #write a sample data table with export headers and numeric analyte columns
+  write_data_sheet <- function(sheetname, excel_df) {
+    sheetname <- excel_add_sheet(wb, sheetname)
+    writeData(wb, sheet = sheetname, excel_format(excel_df, df_analytes, raw_names))
+  }
 
   if (input_excel_raw_data) {
-    addWorksheet(wb, "Raw Data")
-    excel_df <- read_table_try("data_raw", params)
-    writeData(wb, sheet = nextsheet, excel_df)
-    nextsheet <- nextsheet + 1
+    sheetname <- excel_add_sheet(wb, "Raw Data")
+    excel_df <- read_table_try("data_raw", params, check_names = FALSE)
+    writeData(wb, sheet = sheetname, excel_df)
   }
   
   if (input_excel_raw_data_no_indicator) {
-    addWorksheet(wb, "Status Removed")
     excel_df <- read_table_try("data_no_indicators", params)
-    excel_df <- fix_header(excel_df, df_analytes)
-    writeData(wb, sheet = nextsheet, excel_df)
-    nextsheet <- nextsheet + 1
+    write_data_sheet("Status Removed", fix_header(excel_df, df_analytes))
   }
   
   if (input_excel_impute_data) {
-    addWorksheet(wb, "Imputed Data")
     excel_df <- read_table_try("data_impute", params)
-    excel_df <- fix_header(excel_df, df_analytes)
-    writeData(wb, sheet = nextsheet, excel_df)
-    nextsheet <- nextsheet + 1
+    write_data_sheet("Imputed Data", fix_header(excel_df, df_analytes))
   }
   
   if (input_excel_report) {
-    addWorksheet(wb, "Sample Summary")
-    excel_df <- read_table_try("Report_template", params)
+    sheetname <- excel_add_sheet(wb, "Sample Summary")
+    excel_df <- read_table_try("Report_template", params, check_names = FALSE)
     #remove 'R_colnames" from excel_df by name
     excel_df <- excel_df[,-which(colnames(excel_df) == "R_colnames")]
-    writeData(wb, sheet = nextsheet, excel_df)
-    nextsheet <- nextsheet + 1
+    writeData(wb, sheet = sheetname, excel_numeric(excel_df))
   }
   
   if (input_excel_qc_report) {
-    addWorksheet(wb, "QC Summary")
-    excel_df <- read_table_try("QC_Report", params)
-    writeData(wb, sheet = nextsheet, excel_df)
-    nextsheet <- nextsheet + 1
+    sheetname <- excel_add_sheet(wb, "QC Summary")
+    excel_df <- read_table_try("QC_Report", params, check_names = FALSE)
+    writeData(wb, sheet = sheetname, excel_numeric(excel_df))
   }
   
+  materials <- unique(unlist(strsplit(params$material_list, ",")))
+  db_tables <- list_tables(params)
+  
   if (input_excel_spqc_report) {
-    materials <- unique(unlist(strsplit(params$material_list, ",")))
     for (material in materials) {
-      excel_df <- read_table_try(stringr::str_c("SPQC_Report_", material), params)
+      excel_df <- read_table_try(stringr::str_c("SPQC_Report_", material), params, check_names = FALSE)
       if (material == materials[1]) {
         excel_df_all <- excel_df
       }else{
@@ -1163,79 +1152,51 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
         }
       }
     }
-    addWorksheet(wb, "SPQC Summary")
+    sheetname <- excel_add_sheet(wb, "SPQC Summary")
     #remove 'R_colnames" from excel_df by name
     excel_df_all <- excel_df_all[,-which(colnames(excel_df_all) == "R_colnames")]
-    writeData(wb, sheet = nextsheet, excel_df_all)
-    nextsheet <- nextsheet + 1
+    writeData(wb, sheet = sheetname, excel_numeric(excel_df_all))
   }
   
   if (input_excel_spqc_summary_report) {
-    materials <- unique(unlist(strsplit(params$material_list, ",")))
     for (material in materials) {
-      excel_df <- read_table_try(stringr::str_c("SPQC_Summary_Report_", material), params)
+      excel_df <- read_table_try(stringr::str_c("SPQC_Summary_Report_", material), params, check_names = FALSE)
       if (material == materials[1]) {
         excel_df_all <- excel_df
       }else{
-        excel_df_all <- cbind(excel_df_all, excel_df[,-c(1:2)])
+        #Class, Sub_platform and Targeted are the same for every material
+        excel_df_all <- cbind(excel_df_all, excel_df[,-c(1:3)])
       }
     }
-    addWorksheet(wb, "SPQC Summary Report")
-    writeData(wb, sheet = nextsheet, excel_df_all)
-    nextsheet <- nextsheet + 1
+    sheetname <- excel_add_sheet(wb, "SPQC Summary Report")
+    writeData(wb, sheet = sheetname, excel_numeric(excel_df_all))
   }
   
-  materials <- unique(unlist(strsplit(params$material_list, ",")))
-  db_tables <- list_tables(params)
   for (material in materials) {
     
     if (input_excel_samples_raw) {
       if (material %in% db_tables) {
-        addWorksheet(wb, material)
         excel_df <- read_table_try(material, params)
-        excel_df2 <- fix_header(excel_df, df_analytes)
-        writeData(wb, sheet = nextsheet, excel_df2)
-        nextsheet <- nextsheet + 1
+        write_data_sheet(material, fix_header(excel_df, df_analytes))
       }
       if (stringr::str_c("Filtered_", material) %in% db_tables) {
-        sheetname <- stringr::str_c("Filtered_", material)
-        if (nchar(sheetname) > 31) {
-          sheetname <- substr(sheetname, 1, 31)
-        }
-        addWorksheet(wb, sheetname)
         excel_filter_df <- read_table_try(stringr::str_c("Filtered_", material), params)
-        excel_filter_df <- fix_header_filter(excel_df, excel_filter_df, df_analytes)
-        writeData(wb, sheet = nextsheet, excel_filter_df)
-        nextsheet <- nextsheet + 1
-        }
+        write_data_sheet(stringr::str_c("Filtered_", material), fix_header_filter(excel_df, excel_filter_df, df_analytes))
+      }
     }
     
     if (input_excel_samples_norm) {
       if (stringr::str_c(params$norm_select, "_Norm_", material) %in% db_tables) {
-        sheetname <- stringr::str_c(params$norm_select, "_Norm_", material)
-        if (nchar(sheetname) > 31) {
-          sheetname <- substr(sheetname, 1, 31)
-        }
-        addWorksheet(wb, sheetname)
         excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", material), params)
-        excel_df2 <- fix_header(excel_df, df_analytes)
-        writeData(wb, sheet = nextsheet, excel_df2)
-        nextsheet <- nextsheet + 1
+        write_data_sheet(stringr::str_c(params$norm_select, "_Norm_", material), fix_header(excel_df, df_analytes))
       }
       if (stringr::str_c(params$norm_select, "_Filtered_Norm_", material) %in% db_tables) {
-        sheetname <- stringr::str_c(params$norm_select, "_Filtered_Norm_", material)
-        if (nchar(sheetname) > 31) {
-          sheetname <- substr(sheetname, 1, 31)
-        }
-        addWorksheet(wb, sheetname)
         excel_filter_df <- read_table_try(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), params)
-        excel_filter_df <- fix_header_filter(excel_df, excel_filter_df, df_analytes)
-        writeData(wb, sheet = nextsheet, excel_filter_df)
-        nextsheet <- nextsheet + 1
+        write_data_sheet(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), fix_header_filter(excel_df, excel_filter_df, df_analytes))
       }
     }
     
-    }
+  }
 
   cat(file = stderr(), "writting excel to disk...", "\n")
   saveWorkbook(wb, filename, overwrite = TRUE)

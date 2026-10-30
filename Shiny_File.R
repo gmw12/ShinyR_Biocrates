@@ -214,17 +214,17 @@ print_stderr2 <- function(file_name, params){
 }
 
 #----------------------------------------------------------------------------------------
-read_table <- function(table_name, params){
+read_table <- function(table_name, params, check_names = TRUE){
   conn <- RSQLite::dbConnect(RSQLite::SQLite(), params$database_path) 
-  df <- RSQLite::dbReadTable(conn, table_name)
+  df <- RSQLite::dbReadTable(conn, table_name, check.names = check_names)
   RSQLite::dbDisconnect(conn)
   return(df)
 }
 
 #----------------------------------------------------------------------------------------
-read_table_try <- function(table_name, params){
+read_table_try <- function(table_name, params, check_names = TRUE){
   for (i in 1:10) {
-    df <- try(read_table(table_name, params))
+    df <- try(read_table(table_name, params, check_names))
     if (class(df) != "try-error"){
       i <- 10
       return(df)
@@ -256,6 +256,51 @@ write_table_try <- function(table_name, df, params){
   }
 }
 
+
+#----------------------------------------------------------------------------------------
+list_fields <- function(table_name, params){
+  conn <- RSQLite::dbConnect(RSQLite::SQLite(), params$database_path) 
+  field_list <- RSQLite::dbListFields(conn, table_name)
+  RSQLite::dbDisconnect(conn)
+  return(field_list)
+}
+
+#----------------------------------------------------------------------------------------
+#store columns that only contain numbers (or blanks) as numbers so Excel does not show numbers as text
+excel_numeric <- function(df, cols = seq_along(df)){
+  for (i in cols) {
+    x <- df[[i]]
+    if (is.character(x)) {
+      x_num <- suppressWarnings(as.numeric(x))
+      if (all(is.na(x) | trimws(x) == "" | !is.na(x_num))) { df[[i]] <- x_num }
+    }
+  }
+  return(df)
+}
+
+#----------------------------------------------------------------------------------------
+#restore export header names on sample info columns (R mangles them, e.g. Plate.bar.code) and make analyte columns numeric
+excel_format <- function(df, df_analytes, raw_names){
+  lookup <- stats::setNames(raw_names, make.names(raw_names))
+  info_cols <- !(colnames(df) %in% df_analytes$Name) & colnames(df) %in% names(lookup)
+  colnames(df)[info_cols] <- lookup[colnames(df)[info_cols]]
+  df <- excel_numeric(df, which(colnames(df) %in% df_analytes$Name))
+  return(df)
+}
+
+#----------------------------------------------------------------------------------------
+#add worksheet with an Excel safe name (31 characters max, unique in the workbook), returns the sheet name
+excel_add_sheet <- function(wb, sheetname){
+  sheetname <- substr(gsub("[\\[\\]:*?/\\\\]", "_", sheetname, perl = TRUE), 1, 31)
+  i <- 1
+  base_name <- sheetname
+  while (tolower(sheetname) %in% tolower(names(wb))) {
+    i <- i + 1
+    sheetname <- stringr::str_c(substr(base_name, 1, 31 - nchar(i) - 1), "_", i)
+  }
+  openxlsx::addWorksheet(wb, sheetname)
+  return(sheetname)
+}
 
 #----------------------------------------------------------------------------------------
 list_tables <- function(params){
