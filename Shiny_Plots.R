@@ -16,11 +16,9 @@ create_qc_plots <- function(session, input, output, params){
   print_stderr("error_qcboxplot.txt")
 
   wait_cycle <- 0
-  while (!file.exists(str_c(params$plot_path,"QC_boxplot.png"))) {
-    if (wait_cycle < 10) {
-      Sys.sleep(0.5)
-      wait_cycle <- wait_cycle + 1
-    }
+  while (!file.exists(str_c(params$plot_path,"QC_boxplot.png")) && wait_cycle < 10) {
+    Sys.sleep(0.5)
+    wait_cycle <- wait_cycle + 1
   }
   
   ui_render_qc_plots(session, input, output)
@@ -50,11 +48,9 @@ create_spqc_plots <- function(session, input, output, params){
   
   wait_cycle <- 0
   
-  while (!file.exists(stringr::str_c(params$plot_path, "SPQC_", params$material_select, "_barplot.png"))) {
-    if (wait_cycle < 10) {
-      Sys.sleep(0.5)
-      wait_cycle <- wait_cycle + 1
-    }
+  while (!file.exists(stringr::str_c(params$plot_path, "SPQC_", params$material_select, "_barplot.png")) && wait_cycle < 10) {
+    Sys.sleep(0.5)
+    wait_cycle <- wait_cycle + 1
   }
   
   ui_render_spqc_plots(session, input, output, params)

@@ -183,13 +183,15 @@ shinyServer(function(session, input, output) {
     
     cat(file = stderr(), "process_material clicked...", "\n")
     
-    process_data(session, input, output, params)
-    
-    create_spqc_plots(session, input, output, params)
-    
-    spqc_missing_filter(session, input, output, params)
-    
-    ui_render_sample_tables(session, input, output, params)
+    #process_data shows an error popup and returns FALSE if the material cannot be processed
+    if (process_data(session, input, output, params)) {
+      
+      create_spqc_plots(session, input, output, params)
+      
+      spqc_missing_filter(session, input, output, params)
+      
+      ui_render_sample_tables(session, input, output, params)
+    }
     
     cat(file = stderr(), "process_material clicked...end", "\n\n\n")
     removeModal()

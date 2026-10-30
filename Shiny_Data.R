@@ -621,21 +621,86 @@ process_data <- function(session, input, output, params){
   params$missing_filter_value <- input$missing_filter_value
   params$spqc_replace <- input$spqc_replace
   
+  #stop before processing if the material/settings cannot be processed (e.g. kit QC only materials)
+  material_errors <- check_material(params)
+  if (length(material_errors) > 0) {
+    shinyalert("Cannot process material", stringr::str_c(material_errors, collapse = "\n\n"), type = "error")
+    cat(file = stderr(), "Function process_data...end (not processed)", "\n\n")
+    return(FALSE)
+  }
+  
+  process_data_calc <- callr::r_bg(process_data_bg, args = list(params), stderr = str_c(params$error_path, "//process_data_calc.txt"), supervise = TRUE)
+  process_data_calc$wait()
+  print_stderr("process_data_calc.txt")
+  
+  if (process_data_calc$get_exit_status() != 0) {
+    shinyalert("Oops!", stringr::str_c("Processing ", params$material_select, " failed, see process_data_calc.txt"), type = "error")
+    cat(file = stderr(), "Function process_data...end (failed)", "\n\n")
+    return(FALSE)
+  }
+  
   #check if params$material_list exists
   if (length(params$material_list) == 0) {
     params$material_list <- input$material_select
   }else{
     params$material_list <- stringr::str_c(params$material_list, ",", input$material_select)
   }
-  
-  process_data_calc <- callr::r_bg(process_data_bg, args = list(params), stderr = str_c(params$error_path, "//process_data_calc.txt"), supervise = TRUE)
-  process_data_calc$wait()
-  print_stderr("process_data_calc.txt")
 
   updatePickerInput(session, "pca_plate_select_list", choices = unlist(strsplit(params$plates, ",")))
 
   params <<- params
   
+  cat(file = stderr(), "Function process_data...end", "\n\n")
+  return(TRUE)
+}
+
+#---------------------------------------------------------------------
+#returns error messages (empty if the selected material and settings can be processed)
+check_material <- function(params){
+  cat(file = stderr(), "Function check_material...", "\n")
+  
+  conn <- RSQLite::dbConnect(RSQLite::SQLite(), params$database_path)
+  df <- RSQLite::dbGetQuery(conn, 'SELECT "Material", "Sample.type", "Sample.description", "Plate.bar.code" FROM data_impute')
+  RSQLite::dbDisconnect(conn)
+  
+  material <- params$material_select
+  errors <- c()
+  
+  #study samples = Sample type rows that are not SPQC or reference (NIST, Golden West) samples
+  reference <- grepl("SPQC|NIST|Golden West", df$Sample.description)
+  study <- df$Sample.type == "Sample" & !reference
+  study_materials <- unique(df$Material[study])
+  
+  if (!any(study & df$Material == material)) {
+    errors <- c(errors, stringr::str_c("'", material, "' has no study samples, it only contains kit QC or reference samples. ",
+                                       "Select a study material: ", stringr::str_c(study_materials, collapse = ", ")))
+  } else {
+    if (params$spqc_replace == "No") {
+      if (!any(grepl("SPQC", df$Sample.description) & df$Material == material)) {
+        errors <- c(errors, stringr::str_c("'", material, "' has no SPQC samples. Use 'Replace SPQC?' to use reference samples instead."))
+      }
+    } else if (!any(grepl(params$spqc_replace, df$Sample.description))) {
+      errors <- c(errors, stringr::str_c("No ", params$spqc_replace, " samples found to replace SPQC."))
+    }
+    
+    if (params$norm_select != "None" && params$plate_number > 1) {
+      norm_rows <- grepl(params$norm_select, df$Sample.description)
+      if (params$norm_select == "SPQC") { norm_rows <- norm_rows & df$Material == material }
+      if (!any(norm_rows)) {
+        errors <- c(errors, stringr::str_c("No ", params$norm_select, " samples found for normalization."))
+      }
+    }
+  }
+  
+  if (isTRUE(params$spqc_filter) && is.na(params$spqc_filter_value)) {
+    errors <- c(errors, "SPQC %CV Filter is checked but Max %CV is empty.")
+  }
+  if (isTRUE(params$missing_filter) && is.na(params$missing_filter_value)) {
+    errors <- c(errors, "Max% <LOD filter is checked but Max % <LOD is empty.")
+  }
+  
+  cat(file = stderr(), "Function check_material...end", "\n\n")
+  return(errors)
   cat(file = stderr(), "Function process_data...end", "\n\n")
 }
 
@@ -651,9 +716,7 @@ process_data_bg <- function(params){
   df <- read_table_try("data_impute", params)
   df_report <- read_table_try("Report_template", params)
 
-  df_material <- df[grep(material, df$Material),]
-  
-  df_material <- df_material[grep("Sample", df_material$Sample.type),]
+  df_material <- df[df$Material == material & df$Sample.type == "Sample",]
   
   if(params$spqc_replace != "No"){
     df_to_add <- df[grep(params$spqc_replace, df$Sample.description),]
@@ -959,7 +1022,7 @@ spqc_missing_filter_bg <- function(params, use_norm){
   analytes_to_remove <- unique(analytes_to_remove)  
 
   if (length(analytes_to_remove) > 0) {
-    df_material <- df_material[,-which(colnames(df_material) %in% analytes_to_remove)]
+    df_material <- df_material[,!(colnames(df_material) %in% analytes_to_remove)]
   }
   
   if (use_norm){
@@ -1146,7 +1209,7 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
         addWorksheet(wb, sheetname)
         excel_filter_df <- read_table_try(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), params)
         excel_filter_df <- fix_header_filter(excel_df, excel_filter_df, df_analytes)
-        writeData(wb, sheet = nextsheet, excel_df)
+        writeData(wb, sheet = nextsheet, excel_filter_df)
         nextsheet <- nextsheet + 1
       }
     }
