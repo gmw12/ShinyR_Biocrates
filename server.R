@@ -190,7 +190,8 @@ shinyServer(function(session, input, output) {
       
       spqc_missing_filter(session, input, output, params)
       
-      ui_render_sample_tables(session, input, output, params)
+      #tables and plots for the processed material (clears normalized outputs if not normalized)
+      ui_render_material(session, input, output, params, input$material_select)
     }
     
     cat(file = stderr(), "process_material clicked...end", "\n\n\n")
@@ -198,6 +199,17 @@ shinyServer(function(session, input, output) {
   }) 
   
   
+  
+  #------------------------------------------------------------------------------------------------------  
+  #show tables and SPQC plots for the processed material selected
+  observeEvent(input$view_material_select, {
+    
+    cat(file = stderr(), "view_material_select changed...", "\n")
+    
+    ui_render_material(session, input, output, params, input$view_material_select)
+    
+    cat(file = stderr(), "view_material_select changed...end", "\n\n\n")
+  }, ignoreInit = TRUE)
   
   #------------------------------------------------------------------------------------------------------  
   observeEvent(input$create_pca, {

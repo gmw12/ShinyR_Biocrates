@@ -241,11 +241,11 @@ norm_line_bg <- function(params) {
 interactive_pca2d <- function(session, input, output, params) {
   cat(file = stderr(), "interactive_pca2d..." , "\n")
   
-  #only processed materials are listed in pca_material_select, use the normalization that material was processed with
-  material <- input$pca_material_select
+  #only processed materials are listed in view_material_select, use the normalization that material was processed with
+  material <- input$view_material_select
   material_norms <- material_norm_list(params)
   if (length(material) == 0 || material == "" || !(material %in% names(material_norms))) {
-    shinyalert("PCA", "No processed material selected. Process a material on this tab first.", type = "error")
+    shinyalert("PCA", "No processed material selected. Process a material first.", type = "error")
     return()
   }
   norm_select <- material_norms[[material]]

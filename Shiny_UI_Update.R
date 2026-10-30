@@ -46,6 +46,31 @@ ui_render_startup <- function(session, input, output, params) {
 }
 
 #-------------------------------------------------------------------------------------------
+#show sample tables and SPQC plots for a processed material, using the normalization it was processed with
+ui_render_material <- function(session, input, output, params, material) {
+  cat(file = stderr(), "Function ui_render_material", "\n")
+  
+  material_norms <- material_norm_list(params)
+  if (length(material) == 0 || !(material %in% names(material_norms))) {
+    cat(file = stderr(), "Function ui_render_material...end (not processed)", "\n")
+    return()
+  }
+  params$material_select <- material
+  params$norm_select <- material_norms[[material]]
+  
+  #clear normalized outputs left from a previously shown material
+  if (params$norm_select == "None") {
+    output$norm_material_table <- DT::renderDataTable(NULL)
+    output$spqc_line <- renderImage({ req(FALSE) }, deleteFile = FALSE)
+  }
+  
+  ui_render_sample_tables(session, input, output, params)
+  ui_render_spqc_plots(session, input, output, params)
+  
+  cat(file = stderr(), "Function ui_render_material...end", "\n")
+}
+
+#-------------------------------------------------------------------------------------------
 ui_render_sample_tables <- function(session, input, output, params) {
   cat(file = stderr(), "Function ui_render_sample_tables", "\n")
 
@@ -162,7 +187,7 @@ update_widgets <- function(session, input, output, params) {
   updatePickerInput(session, "pca_plate_select_list", choices = unlist(strsplit(params$plates, ",")))
   
   #PCA can only use processed materials
-  updateSelectInput(session, "pca_material_select", choices = names(material_norm_list(params)))
+  updateSelectInput(session, "view_material_select", choices = names(material_norm_list(params)))
   
  cat(file = stderr(), "Function - update_widgets...end", "\n")
 }

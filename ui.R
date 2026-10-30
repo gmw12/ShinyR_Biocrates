@@ -203,6 +203,11 @@ body <- dashboardBody(
               
               column(width = 10,  
                      fluidRow(
+                       column(width = 12,
+                              selectInput(inputId = "view_material_select", label = "Show results for material (processed)", choices = NULL, width = 350)
+                       )
+                     ),
+                     fluidRow(
                        tabBox(id="explore_data", width = 12, height = 750,
                               
                               tabPanel("Data",
@@ -269,7 +274,6 @@ body <- dashboardBody(
                               
                               tabPanel("PCA",
                                        column(width =3, offset =0,
-                                              selectInput(inputId = "pca_material_select", label = h4("Material (processed)", style="color:blue"), choices = NULL),
                                               radioButtons("data_type", label = h4("Data Type", style="color:blue"),
                                                            choices = list("Unfiltered" = 1, "Filtered" = 2), 
                                                            selected = 1),

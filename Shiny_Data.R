@@ -657,7 +657,7 @@ process_data <- function(session, input, output, params){
   params$material_norms <- stringr::str_c(names(material_norms), "=", material_norms, collapse = ",")
 
   updatePickerInput(session, "pca_plate_select_list", choices = unlist(strsplit(params$plates, ",")))
-  updateSelectInput(session, "pca_material_select", choices = names(material_norms), selected = input$material_select)
+  updateSelectInput(session, "view_material_select", choices = names(material_norms), selected = input$material_select)
 
   params <<- params
   

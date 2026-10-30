@@ -8,11 +8,17 @@ create_data_table <- function(session, input, output, params, table_name, input_
   require('DT')
   require('shinyjs')
   
-  bg_datatable <- callr::r_bg(create_data_table_bg, args = list(params, table_name), stderr = stringr::str_c(params$error_path, "//error_datatable.txt"), supervise = TRUE)
-  bg_datatable$wait()
-  print_stderr("error_datatable.txt")
-  
-  data_table_DT <- bg_datatable$get_result()
+  #show an empty table if the table was not created (e.g. normalization not used)
+  if (table_name %in% list_tables(params)) {
+    bg_datatable <- callr::r_bg(create_data_table_bg, args = list(params, table_name), stderr = stringr::str_c(params$error_path, "//error_datatable.txt"), supervise = TRUE)
+    bg_datatable$wait()
+    print_stderr("error_datatable.txt")
+    
+    data_table_DT <- bg_datatable$get_result()
+  } else {
+    cat(file = stderr(), stringr::str_c("table ", table_name, " does not exist"), "\n")
+    data_table_DT <- NULL
+  }
   
   if (input_table == "QC"){
     output$data_table <- DT::renderDataTable(data_table_DT) 
