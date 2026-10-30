@@ -75,10 +75,10 @@ load_data_file <- function(session, input, output, params){
   bg_load_data$wait()
   print_stderr("error_load_data.txt")
   
-  infinity_error <- bg_load_data$get_result()
+  infinity_message <- bg_load_data$get_result()
   
-  if (infinity_error) {
-    shinyalert("Oops!", "Data contains infinity values", type = "error")
+  if (nchar(infinity_message) > 0) {
+    shinyalert("Infinity values", infinity_message, type = "warning")
   }
   
   #parameters are written to db during r_bg (process cannot write to params directly)
@@ -99,11 +99,24 @@ load_data_bg <- function(data_sfb, params){
   df <- data.table::fread(file = data_sfb$datapath, header = TRUE, skip=1, stringsAsFactors = FALSE, sep = "\t", fill=TRUE)
   #save(df, file="z1")    #  load(file="z1") 
   
-  #search for "infinity" in df report infinity_error = TRUE if found
-  if (any(grepl("infinity", df, ignore.case = TRUE))){
-    infinity_error <- TRUE
-  }else{
-    infinity_error <- FALSE  
+  #infinity in sample analyte values means a calibration curve problem, user needs to fix it in the Biocrates software
+  df_analytes <- read_table_try("Analytes", params)
+  df_check <- as.data.frame(df)
+  df_check <- df_check[grepl("^[0-9]", df_check[[1]]),]
+  sample_type <- df_check[["Sample type"]]
+  df_check <- df_check[, colnames(df_check) %in% df_analytes$Name, drop = FALSE]
+  infinity_cells <- as.matrix(as.data.frame(lapply(df_check, function(x) grepl("infinity", x, ignore.case = TRUE))))
+  infinity_message <- ""
+  if (any(infinity_cells)) {
+    infinity_analytes <- colnames(df_check)[colSums(infinity_cells) > 0]
+    infinity_rows <- rowSums(infinity_cells) > 0
+    other_rows <- sum(infinity_rows & sample_type != "Sample")
+    infinity_message <- stringr::str_c("Infinity values found in sample data: ", length(infinity_analytes), " analyte(s) (",
+                                       stringr::str_c(head(infinity_analytes, 10), collapse = ", "), if (length(infinity_analytes) > 10) ", ..." else "",
+                                       ") in ", sum(infinity_rows & sample_type == "Sample"), " sample(s)",
+                                       if (other_rows > 0) stringr::str_c(" and ", other_rows, " QC/standard row(s)") else "", ". ",
+                                       "Correct the calibration curves in the Biocrates software and re-export the data.")
+    cat(file = stderr(), infinity_message, "\n")
   }
   
   #remove trailing and leading whitespace from df$Material
@@ -123,7 +136,7 @@ load_data_bg <- function(data_sfb, params){
   gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
   cat(file = stderr(), "function load_unkown_data_bg...end", "\n\n")
   
-  return(infinity_error)
+  return(infinity_message)
 }
 #---------------------------------------------------------------------
 
