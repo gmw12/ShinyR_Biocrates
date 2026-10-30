@@ -639,6 +639,11 @@ process_data <- function(session, input, output, params){
     return(FALSE)
   }
   
+  norm_problems <- process_data_calc$get_result()
+  if (length(norm_problems) > 0) {
+    shinyalert("Normalization", stringr::str_c(norm_problems, collapse = "\n"), type = "warning")
+  }
+  
   #check if params$material_list exists
   if (length(params$material_list) == 0) {
     params$material_list <- input$material_select
@@ -688,6 +693,11 @@ check_material <- function(params){
       if (params$norm_select == "SPQC") { norm_rows <- norm_rows & df$Material == material }
       if (!any(norm_rows)) {
         errors <- c(errors, stringr::str_c("No ", params$norm_select, " samples found for normalization."))
+      } else {
+        missing_plates <- setdiff(unique(df$Plate.bar.code[df$Material == material]), unique(df$Plate.bar.code[norm_rows]))
+        if (length(missing_plates) > 0) {
+          errors <- c(errors, stringr::str_c("No ", params$norm_select, " samples for normalization on plate(s): ", stringr::str_c(missing_plates, collapse = ", ")))
+        }
       }
     }
   }
@@ -728,72 +738,80 @@ process_data_bg <- function(params){
   
   write_table_try(material, df_material, params)
   
-  normalize_data(df, df_report, material, params)
+  norm_problems <- normalize_data(df, df_report, material, params)
   
   #create table with material SPQC data for report
   spqc_report(df_report, params)
   spqc_summary_report(material, params)
   
   cat(file = stderr(), "Function process_data_bg...end", "\n\n")
+  return(norm_problems)
 }
 
 #---------------------------------------------------------------------
 normalize_data <- function(df, df_report, material, params){
   cat(file = stderr(), "Function normalize_data...", "\n")
   # material = params$material_select
+  norm_problems <- c()
   
   if (params$norm_select != "None" & params$plate_number > 1) {
-    df_norm <- df[grep(params$norm_select, df$Sample.description),]
-    #if using anything but SPQC, the material could be different
-    if(params$norm_select == "SPQC") {
-      df_norm_material <- df_norm[grep(material, df_norm$Material),]
-    }else {
-      df_norm_material <- df_norm
+    
+    #reference rows (SPQC must be the same material, NIST/Golden West can be any material)
+    is_ref <- function(x) {
+      ref <- grepl(params$norm_select, x$Sample.description)
+      if (params$norm_select == "SPQC") { ref <- ref & x$Material == material }
+      ref
     }
     
-    norm_material <- unique(df_norm_material$Material)
+    #norm factors use reference values before LOD imputation, values < LOD (or 0) are excluded
+    df_start <- read_table_try("data_start", params)
+    df_norm <- df_start[is_ref(df_start),]
+    analyte_cols <- (ncol(df_norm)-nrow(df_report)+1):ncol(df_norm)
+    df_norm_data <- df_norm[, analyte_cols, drop = FALSE]
+    below_lod <- as.matrix(as.data.frame(lapply(df_norm_data, function(x) {
+      x_num <- suppressWarnings(as.numeric(x))
+      (!is.na(x) & grepl("LOD", x)) | (!is.na(x_num) & x_num == 0)
+    })))
+    df_norm_data <- suppressWarnings(as.data.frame(lapply(df_norm_data, as.numeric)))
+    df_norm_data[below_lod] <- NA
     
-    df_norm_plate_mean <- df_report[,1:3]
     df_norm_mean <- df_report[,1:3]
-    
-    #incase normalizing on group that is not the same material
-    if(nrow(df_norm_material) > 0 ) {
-      df_norm <- df_norm_material
-    }
-
-    #isolate data only
-    df_norm_data <- df_norm[,(ncol(df_norm)-nrow(df_report)+1):ncol(df_norm)]
-    df_norm_data <- as.data.frame(lapply(df_norm_data, as.numeric))
-    mean_df_norm_data <- round(colMeans(df_norm_data, na.rm = TRUE), digits = 5)
-    df_norm_mean[stringr::str_c("Mean ", params$norm_select, " ", material)] <- mean_df_norm_data
+    mean_df_norm_data <- colMeans(df_norm_data, na.rm = TRUE)
+    mean_df_norm_data[is.nan(mean_df_norm_data)] <- NA
+    df_norm_mean[stringr::str_c("Mean ", params$norm_select, " ", material)] <- round(mean_df_norm_data, digits = 5)
     df_norm_mean[stringr::str_c("CV ", params$norm_select, " ", material)] <- round(100 * (apply(df_norm_data, 2, sd, na.rm = TRUE) / mean_df_norm_data), digits = 2)
-
-    #list of plates
-    norm_plates <- unique(df_norm$Plate.bar.code)    
     
-    #calc the mean intensity from each SPQC by plate
-    for (plate in norm_plates) {
-      df_plate <- df_norm[grep(plate, df_norm$Plate.bar.code),]
-      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
-      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
-      df_norm_plate_mean[stringr::str_c(params$norm_select, " ", plate, " ", material)] <- round(colMeans(df_plate, na.rm = TRUE), digits = 5)
-    } 
+    #every plate with samples of this material needs reference samples (checked in check_material)
+    norm_plates <- unique(df$Plate.bar.code[df$Material == material])
+    missing_plates <- setdiff(norm_plates, df_norm$Plate.bar.code)
+    if (length(missing_plates) > 0) {
+      stop(stringr::str_c("No ", params$norm_select, " samples on plate(s): ", stringr::str_c(missing_plates, collapse = ", ")))
+    }
     
-    df_norm_plate_mean <- df_norm_plate_mean[,4:ncol(df_norm_plate_mean)]
-    total_mean <- rowMeans(df_norm_plate_mean, na.rm = TRUE)
+    #calc the mean of the reference samples on each plate (analytes x plates)
+    plate_means <- sapply(norm_plates, function(plate) {
+      plate_mean <- colMeans(df_norm_data[df_norm$Plate.bar.code == plate, , drop = FALSE], na.rm = TRUE)
+      plate_mean[is.nan(plate_mean)] <- NA
+      plate_mean
+    })
+    plate_means <- matrix(plate_means, nrow = nrow(df_report))
+    total_mean <- rowMeans(plate_means, na.rm = TRUE)
     
-    #divide each column in dfs_spqc_sum by total_sum
-    df_norm_factor <- df_norm_plate_mean/total_mean
+    #factor = plate mean / mean of plate means, analytes with no reference values >= LOD on a plate are not normalized (factor 1)
+    df_norm_factor <- as.data.frame(plate_means / total_mean)
+    colnames(df_norm_factor) <- stringr::str_c(params$norm_select, " ", norm_plates, " ", material)
+    for (i in seq_along(norm_plates)) {
+      no_factor <- is.na(df_norm_factor[[i]])
+      if (any(no_factor)) {
+        norm_problems <- c(norm_problems, stringr::str_c("Plate ", norm_plates[i], ": ", sum(no_factor), " analytes not normalized (all ", params$norm_select, " values < LOD)"))
+      }
+      df_norm_factor[[i]][no_factor] <- 1
+    }
     
     #normalize data on each plate
     for(plate in norm_plates){
-      df_plate <- df[grep(plate, df$Plate.bar.code),]
-      df_plate <- df_plate[grep(material, df_plate$Material),]
-      #add NIST and Golden West data since could be different material
-      if(material != norm_material) {
-        df_plate <- rbind(df_plate, df_norm_material)
-        df_plate <- df_plate[grep(plate, df_plate$Plate.bar.code),]
-      }
+      #add NIST and Golden West rows since they could be a different material
+      df_plate <- df[df$Plate.bar.code == plate & (df$Material == material | is_ref(df)),]
       df_info_plate <- df_plate[,1:(ncol(df_plate)-nrow(df_report))]
       df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
       df_plate <- as.data.frame(lapply(df_plate, as.numeric))
@@ -817,9 +835,11 @@ normalize_data <- function(df, df_report, material, params){
     write_table_try(stringr::str_c(params$norm_select, "_Norm_Factor_", material), df_norm_factor, params)
     write_table_try(stringr::str_c("Norm_Mean_", material), df_norm_mean, params)
     
+    for (problem in norm_problems) { cat(file = stderr(), stringr::str_c("Norm problem: ", problem), "\n") }
   }
    
   cat(file = stderr(), "Function normalize_data...end", "\n\n")
+  return(norm_problems)
 }
 
 #---------------------------------------------------------------------
