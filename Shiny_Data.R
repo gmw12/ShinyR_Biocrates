@@ -379,25 +379,26 @@ report_template_bg <- function(params){
       lod_problems <- c(lod_problems, stringr::str_c("Plate ", plate, ": no LOD rows found"))
     }
     
-    #consolidate values from flow inject and lcms barcodes, use calc LOD and fall back to LOD from OP
-    calc_lod <- lod_max(calc_barcode, barcodes)
+    #consolidate values from flow inject and lcms barcodes, use LOD from OP when present and fall back to calc LOD
     op_lod <- lod_max(op_barcode, barcodes)
-    use_op <- is.na(calc_lod) | calc_lod == 0
-    calc_lod[use_op] <- op_lod[use_op]
-    
-    missing_lod <- which(is.na(calc_lod) | calc_lod == 0)
+    calc_lod <- lod_max(calc_barcode, barcodes)
+    plate_lod <- op_lod
+    use_calc <- is.na(plate_lod) | plate_lod == 0
+    plate_lod[use_calc] <- calc_lod[use_calc]
+
+    missing_lod <- which(is.na(plate_lod) | plate_lod == 0)
     if (length(missing_lod) > 0) {
       lod_problems <- c(lod_problems, stringr::str_c("Plate ", plate, ": ", length(missing_lod), " analytes with no LOD (",
                                                      stringr::str_c(head(df_report$Name[missing_lod], 5), collapse = ", "),
                                                      if (length(missing_lod) > 5) ", ..." else "", ")"))
-      calc_lod[is.na(calc_lod)] <- 0
+      plate_lod[is.na(plate_lod)] <- 0
     }
     
     col_name <- stringr::str_c("LOD_", plate, ", uM")
     df_report_colnames <- c(df_report_colnames, col_name)
     
     #create new column called from col_name in df_report
-    df_report[[col_name]] <- calc_lod
+    df_report[[col_name]] <- plate_lod
       
   }
   
