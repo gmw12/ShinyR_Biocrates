@@ -282,7 +282,7 @@ interactive_pca2d <- function(session, input, output, params) {
  group <- rep("Sample", nrow(df))
  group[grepl("SPQC", df$Sample.description)] <- "SPQC"
  group[grepl("NIST", df$Sample.description)] <- "NIST"
- group[grepl("Golden West", df$Sample.description)] <- "Golden_West"
+ group[is_ref_sample(df$Sample.description, "Golden West")] <- "Golden_West"
  df$Sample.description <- group
 
  if(input$remove_gw_nist) {

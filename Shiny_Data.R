@@ -163,8 +163,10 @@ remove_status_cols_bg <- function(params){
   #remove columns that contain the word Status from df
   df <- df |> dplyr::select(-contains("Status"))
   
-  #from df column Plate.note keep only characters to the first .
-  df$Plate.note <- gsub("\\..*", "", df$Plate.note)
+  #from df column Plate.note keep only characters to the first . (some exports have no Plate note column)
+  if ("Plate.note" %in% colnames(df)) {
+    df$Plate.note <- gsub("\\..*", "", df$Plate.note)
+  }
 
   write_table_try("data_status", df, params)
   
@@ -195,18 +197,11 @@ remove_indicators_bg <- function(params){
   df <- read_table_try("data_status", params)
   df_analytes <- read_table_try("analytes", params)  
 
-  #find colnumber for df_analytes$Abbreviation[1]
+  #drop the metabolism indicator columns after the last analyte
   col_num <- which(colnames(df) == df_analytes$Name[1])
   last_col <- col_num + nrow(df_analytes) - 1
-  
-  df_indicators <- df[,(last_col + 1):ncol(df)]
   df <- df[,(1:last_col)]
-  
-  #find first row with a number 
-  data_rows <- which(grepl("^[0-9]", df_indicators[[1]]))
-  df_indicators <- df_indicators[data_rows,]
-  
-  write_table_try("data_indicators", df_indicators, params)
+
   write_table_try("data_no_indicators", df, params)
   
   cat(file = stderr(), "Function remove_indicators_bg...end", "\n\n")
@@ -224,9 +219,12 @@ separate_data <- function(session, input, output, params){
 
   analyte_match <- bg_separate_data$get_result()[[1]]
   params <<- bg_separate_data$get_result()[[2]]
-  
+  export_message <- bg_separate_data$get_result()[[3]]
+
   if (analyte_match == FALSE) {
     shinyalert("Oops!", "Data and Configuration do not match", type = "error")
+  } else if (nchar(export_message) > 0) {
+    shinyalert("Check WebIDQ export", export_message, type = "warning")
   }
   
   cat(file = stderr(), "Function separate_data...end", "\n\n")
@@ -266,6 +264,22 @@ separate_data_bg <- function(params){
     plates <- unique(df_data$Plate.bar.code)
   }
 
+  #sample rows with only some of another plate's barcodes (e.g. FIA only re-injections in a Q500 "FIA | LC" export)
+  #mean the WebIDQ export is not correct, the user needs to fix it in the Biocrates software
+  split_barcodes <- function(x) { trimws(unlist(stringr::str_split(x, stringr::fixed("|")))) }
+  partial_plates <- plates[sapply(plates, function(plate) {
+    any(sapply(setdiff(plates, plate), function(other) all(split_barcodes(plate) %in% split_barcodes(other))))
+  })]
+  export_message <- ""
+  if (length(partial_plates) > 0) {
+    df_partial <- df_data[df_data$Plate.bar.code %in% partial_plates,]
+    export_message <- stringr::str_c("The export has ", nrow(df_partial), " row(s) with only part of a plate's barcodes (plate ",
+                                     stringr::str_c(partial_plates, collapse = ", "), "; sample(s) ",
+                                     stringr::str_c(head(unique(df_partial$Sample.identification), 10), collapse = ", "),
+                                     "). These are usually re-injections. Correct the export in the Biocrates software and re-export the data.")
+    cat(file = stderr(), export_message, "\n")
+  }
+
   params$plate_number <- length(plates)
   params$plates <- stringr::str_c(plates, collapse = ",")
   
@@ -284,11 +298,11 @@ separate_data_bg <- function(params){
   
   #check that analytes and order match
   test_data <- colnames(df[(ncol(df)-nrow(df_analytes)+1):ncol(df)])
-  #replace . ( ) + in test with ""
-  test_data <- gsub("[.()\\+]", "", test_data)
-  test_config <- gsub("[.()\\+]", "", df_analytes$Abbreviation)
-  
-  if (all(test_data == test_config)) {
+  #compare names without punctuation (data column names are R-mangled)
+  test_data <- gsub("[^A-Za-z0-9]", "", test_data)
+  test_config <- gsub("[^A-Za-z0-9]", "", make.names(df_analytes$Name))
+
+  if (length(test_data) == length(test_config) && all(test_data == test_config)) {
     analyte_match <- TRUE
   }else{
     analyte_match <- FALSE
@@ -298,7 +312,7 @@ separate_data_bg <- function(params){
   
   cat(file = stderr(), "Function separate_data_bg...end", "\n\n")
 
-  return(list(analyte_match, params))
+  return(list(analyte_match, params, export_message))
     
 }
 
@@ -464,8 +478,8 @@ replace_lod_bg <- function(params){
   df_info <- df[,1:(ncol(df)-nrow(df_report))]
   df_data <- df[,(ncol(df)-nrow(df_report)+1):ncol(df) ]
   
-  #replace 0 value with "< LOD" in df_data
-  df_data[df_data == 0] <- "< LOD"
+  #replace 0 value with "< LOD" in df_data (compare as numbers, text columns can hold "0.000")
+  df_data[is_zero(df_data)] <- "< LOD"
   
   #fill df_random with random numbers between 0 and 1
   set.seed(1234)
@@ -704,7 +718,7 @@ check_material <- function(params){
   errors <- c()
   
   #study samples = Sample type rows that are not SPQC or reference (NIST, Golden West) samples
-  reference <- grepl("SPQC|NIST|Golden West", df$Sample.description)
+  reference <- is_ref_sample(df$Sample.description, "SPQC") | is_ref_sample(df$Sample.description, "NIST") | is_ref_sample(df$Sample.description, "Golden West")
   study <- df$Sample.type == "Sample" & !reference
   study_materials <- unique(df$Material[study])
   
@@ -716,12 +730,12 @@ check_material <- function(params){
       if (!any(grepl("SPQC", df$Sample.description) & df$Material == material)) {
         errors <- c(errors, stringr::str_c("'", material, "' has no SPQC samples. Use 'Replace SPQC?' to use reference samples instead."))
       }
-    } else if (!any(grepl(params$spqc_replace, df$Sample.description))) {
+    } else if (!any(is_ref_sample(df$Sample.description, params$spqc_replace))) {
       errors <- c(errors, stringr::str_c("No ", params$spqc_replace, " samples found to replace SPQC."))
     }
     
     if (params$norm_select != "None" && params$plate_number > 1) {
-      norm_rows <- grepl(params$norm_select, df$Sample.description)
+      norm_rows <- is_ref_sample(df$Sample.description, params$norm_select)
       if (params$norm_select == "SPQC") { norm_rows <- norm_rows & df$Material == material }
       if (!any(norm_rows)) {
         errors <- c(errors, stringr::str_c("No ", params$norm_select, " samples found for normalization."))
@@ -761,7 +775,7 @@ process_data_bg <- function(params){
   df_material <- df[df$Material == material & df$Sample.type == "Sample",]
   
   if(params$spqc_replace != "No"){
-    df_to_add <- df[grep(params$spqc_replace, df$Sample.description),]
+    df_to_add <- df[is_ref_sample(df$Sample.description, params$spqc_replace),]
     if(nrow(df_to_add) == 0){
       cat(file = stderr(), "No replacement SPQC data available...", "\n")
     }
@@ -790,7 +804,7 @@ normalize_data <- function(df, df_report, material, params){
     
     #reference rows (SPQC must be the same material, NIST/Golden West can be any material)
     is_ref <- function(x) {
-      ref <- grepl(params$norm_select, x$Sample.description)
+      ref <- is_ref_sample(x$Sample.description, params$norm_select)
       if (params$norm_select == "SPQC") { ref <- ref & x$Material == material }
       ref
     }
@@ -895,32 +909,39 @@ spqc_report <- function(df_report, params){
   if(params$spqc_replace == "No"){
     df <- df[grep("SPQC", df$Sample.description),]
   }else {
-    df <- df[grep(params$spqc_replace, df$Sample.description),]
+    df <- df[is_ref_sample(df$Sample.description, params$spqc_replace),]
   }
   
   
   if(nrow(df) != 0){
     #list of plates
     spqc_plates <- unique(df$Plate.bar.code)
-    
+
     #isolate data only
     df_all <- df[,(ncol(df)-nrow(df_report)+1):ncol(df)]
-    
+
     #set df_material to numeric
     df_all <- as.data.frame(lapply(df_all, as.numeric))
+
+    #values < LOD (or 0) before imputation are left out of the SPQC mean and %CV, match rows to data_start by sample info
+    df_start <- read_table_try("data_start", params)
+    info_key <- function(x) { do.call(paste, c(x[, 1:(ncol(x)-nrow(df_report)), drop = FALSE], sep = "\r")) }
+    start_rows <- match(info_key(df), info_key(df_start))
+    if (any(is.na(start_rows))) { stop("SPQC rows not found in data_start, cannot find values < LOD") }
+    df_all[is_below_lod(df_start[start_rows, (ncol(df_start)-nrow(df_report)+1):ncol(df_start), drop = FALSE])] <- NA
+
     mean_df_spqc_material <- colMeans(df_all, na.rm = TRUE)
-    
+    mean_df_spqc_material[is.nan(mean_df_spqc_material)] <- NA
+
     #calc the %CV from columns of df_spqc_material (unrounded mean)
     cv_df_spqc_material <- round(100 * (apply(df_all, 2, sd, na.rm = TRUE) / mean_df_spqc_material), digits = 2)
     df_spqc_report[stringr::str_c("Mean ", params$material_select, " SPQC(uM)")] <- round(mean_df_spqc_material, digits = 5)
     df_spqc_report[stringr::str_c("%CV ", params$material_select, " SPQC(uM)")] <- cv_df_spqc_material
     
     for (plate in spqc_plates) {
-      df_plate <- df[df$Plate.bar.code == plate,]
-      #isolate data only
-      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report)+1):ncol(df_plate)]
-      df_plate <- as.data.frame(lapply(df_plate, as.numeric))
+      df_plate <- df_all[df$Plate.bar.code == plate, , drop = FALSE]
       mean_plate_df_spqc_material <- colMeans(df_plate, na.rm = TRUE)
+      mean_plate_df_spqc_material[is.nan(mean_plate_df_spqc_material)] <- NA
       #plate %CV uses the plate mean
       cv_plate_df_spqc_material <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / mean_plate_df_spqc_material), digits = 2)
       df_spqc_report[stringr::str_c("Mean ", plate, " ", params$material_select, " SPQC(uM)")] <- round(mean_plate_df_spqc_material, digits = 5)
@@ -1056,8 +1077,8 @@ spqc_missing_filter_bg <- function(params, use_norm){
     #filter df_start for material in Materials
     df_material_start <- df_start[df_start$Material == params$material_select,]
     df_material_start <- df_material_start[,(ncol(df_material_start)-nrow(df_report)+1):ncol(df_material_start)]
-    #replace 0 values with "< LOD"
-    df_material_start[df_material_start == 0] <- "< LOD"
+    #replace 0 values with "< LOD" (compare as numbers, text columns can hold "0.000")
+    df_material_start[is_zero(df_material_start)] <- "< LOD"
     
     #count the number of times "LOD" appears in each column of df_material_start
     lod_count <- apply(df_material_start, 2, function(x) sum(grepl("LOD", x)))
@@ -1135,7 +1156,8 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
   
   require(openxlsx)
   source('Shiny_File.R')
-  
+  source('Shiny_Data.R')
+
   df_analytes <- read_table_try("Analytes", params)
   #original export header names, used to restore readable sample info headers
   raw_names <- list_fields("data_raw", params)
@@ -1215,8 +1237,10 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
     writeData(wb, sheet = sheetname, excel_numeric(excel_df_all))
   }
   
+  material_norms <- material_norm_list(params)
+
   for (material in materials) {
-    
+
     if (input_excel_samples_raw) {
       if (material %in% db_tables) {
         excel_df <- read_table_try(material, params)
@@ -1229,13 +1253,16 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
     }
     
     if (input_excel_samples_norm) {
-      if (stringr::str_c(params$norm_select, "_Norm_", material) %in% db_tables) {
-        excel_df <- read_table_try(stringr::str_c(params$norm_select, "_Norm_", material), params)
-        write_data_sheet(stringr::str_c(params$norm_select, "_Norm_", material), fix_header(excel_df, df_analytes))
+      #each material uses the normalization it was processed with (params$norm_select is only the last one used)
+      norm_select <- material_norms[material]
+      if (is.na(norm_select)) { norm_select <- "None" }
+      if (stringr::str_c(norm_select, "_Norm_", material) %in% db_tables) {
+        excel_df <- read_table_try(stringr::str_c(norm_select, "_Norm_", material), params)
+        write_data_sheet(stringr::str_c(norm_select, "_Norm_", material), fix_header(excel_df, df_analytes))
       }
-      if (stringr::str_c(params$norm_select, "_Filtered_Norm_", material) %in% db_tables) {
-        excel_filter_df <- read_table_try(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), params)
-        write_data_sheet(stringr::str_c(params$norm_select, "_Filtered_Norm_", material), fix_header_filter(excel_df, excel_filter_df, df_analytes))
+      if (stringr::str_c(norm_select, "_Filtered_Norm_", material) %in% db_tables) {
+        excel_filter_df <- read_table_try(stringr::str_c(norm_select, "_Filtered_Norm_", material), params)
+        write_data_sheet(stringr::str_c(norm_select, "_Filtered_Norm_", material), fix_header_filter(excel_df, excel_filter_df, df_analytes))
       }
     }
     

@@ -303,6 +303,35 @@ excel_add_sheet <- function(wb, sheetname){
 }
 
 #----------------------------------------------------------------------------------------
+#logical matrix of cells that are numerically 0 ("0", "0.000" or 0)
+is_zero <- function(df){
+  as.matrix(as.data.frame(lapply(df, function(x) {
+    x_num <- suppressWarnings(as.numeric(x))
+    !is.na(x_num) & x_num == 0
+  })))
+}
+
+#----------------------------------------------------------------------------------------
+#TRUE for sample descriptions of the reference type ("SPQC", "NIST" or "Golden West")
+#Golden West is matched in any spelling, e.g. "Golden West lot 1", "GoldenWest-LotB1", "golden_west"
+is_ref_sample <- function(description, ref_type){
+  if (ref_type == "Golden West") {
+    grepl("golden[^a-z0-9]*west", description, ignore.case = TRUE)
+  } else {
+    grepl(ref_type, description, fixed = TRUE)
+  }
+}
+
+#----------------------------------------------------------------------------------------
+#logical matrix of cells that are below LOD before imputation ("< LOD" or 0)
+is_below_lod <- function(df){
+  as.matrix(as.data.frame(lapply(df, function(x) {
+    x_num <- suppressWarnings(as.numeric(x))
+    (!is.na(x) & grepl("LOD", x)) | (!is.na(x_num) & x_num == 0)
+  })))
+}
+
+#----------------------------------------------------------------------------------------
 list_tables <- function(params){
   conn <- RSQLite::dbConnect(RSQLite::SQLite(), params$database_path) 
   table_list <- RSQLite::dbListTables(conn)
