@@ -312,6 +312,13 @@ is_zero <- function(df){
 }
 
 #----------------------------------------------------------------------------------------
+#round halves away from zero like Excel (round() gives 13.7 for 100 * 0.055 / 0.4 because it is stored as 13.7499999...)
+round_half_up <- function(x, digits = 0){
+  p <- 10^digits
+  sign(x) * floor(abs(x) * p + 0.5 + 1e-9) / p
+}
+
+#----------------------------------------------------------------------------------------
 #TRUE for sample descriptions of the reference type ("SPQC", "NIST" or "Golden West")
 #Golden West is matched in any spelling, e.g. "Golden West lot 1", "GoldenWest-LotB1", "golden_west"
 is_ref_sample <- function(description, ref_type){

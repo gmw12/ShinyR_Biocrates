@@ -615,10 +615,10 @@ qc_calc_bg <- function(params){
       df_mean[is.nan(df_mean)] <- NA
       df_qc_report[stringr::str_c(qc, " ", plate, " Mean (uM)")] <- df_mean
       #calc the %CV from columns of df_plate
-      df_acc <- round(100 * (df_mean/qc_std_levels), digits = 1)
+      df_acc <- round_half_up(100 * (df_mean/qc_std_levels), digits = 1)
       df_qc_report[stringr::str_c(qc, " ", plate, " Accuracy")] <- df_acc
       
-      df_cv <- round(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
+      df_cv <- round_half_up(100 * (apply(df_plate, 2, sd, na.rm = TRUE) / df_mean), digits = 2)
       df_qc_report[stringr::str_c(qc, " ", plate, " CV")] <- df_cv
       
       df_qc_report[stringr::str_c(qc, " ", plate, " n < LOD")] <- colSums(below_lod)
