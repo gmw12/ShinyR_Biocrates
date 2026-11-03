@@ -225,14 +225,15 @@ read_table <- function(table_name, params, check_names = TRUE){
 read_table_try <- function(table_name, params, check_names = TRUE){
   for (i in 1:10) {
     df <- try(read_table(table_name, params, check_names))
-    if (class(df) != "try-error"){
-      i <- 10
+    if (!inherits(df, "try-error")){
       return(df)
     }else{
       cat(file = stderr(), "Read table error...", "\n")
       Sys.sleep(0.5)
     }
   }
+  #stop instead of returning NULL so later steps never run on missing data
+  stop(stringr::str_c("Could not read table ", table_name, ": ", conditionMessage(attr(df, "condition"))))
 }
 
 #----------------------------------------------------------------------------------------
@@ -244,16 +245,51 @@ write_table <- function(table_name, df, params){
 
 #----------------------------------------------------------------------------------------
 write_table_try <- function(table_name, df, params){
+  #SQLite tables hold at most 2000 columns, wider tables (e.g. Q1000 exports with Status columns) use write_wide_table
+  if (ncol(df) > 2000) {
+    stop(stringr::str_c("Table ", table_name, " has ", ncol(df), " columns, SQLite allows 2000"))
+  }
   for (i in 1:10) {
     result <- try(write_table(table_name, df, params))
     if (!inherits(result, "try-error")){
-      i <- 10
       return(result)
     }else{
       cat(file = stderr(), "Write table error...", "\n")
       Sys.sleep(0.5)
     }
   }
+  #stop instead of carrying on, a failed write would leave an old (or no) table for the next step
+  stop(stringr::str_c("Could not write table ", table_name, ": ", conditionMessage(attr(result, "condition"))))
+}
+
+#----------------------------------------------------------------------------------------
+#tables that can be wider than SQLite's 2000 column limit (raw WebIDQ export) are saved as .rds next to the database
+#the file is in database/ so it is included in the archive zip
+wide_table_path <- function(table_name, params){
+  stringr::str_c(sub("\\.db$", "", params$database_path), "_", table_name, ".rds")
+}
+
+write_wide_table <- function(table_name, df, params){
+  saveRDS(as.data.frame(df), wide_table_path(table_name, params))
+}
+
+#check_names = TRUE gives R-mangled column names, the same as read_table_try
+read_wide_table <- function(table_name, params, check_names = TRUE){
+  file_name <- wide_table_path(table_name, params)
+  if (file.exists(file_name)) {
+    df <- readRDS(file_name)
+    if (check_names) { colnames(df) <- make.names(colnames(df), unique = TRUE) }
+    return(df)
+  }
+  #archives made before the .rds files keep these tables in the database
+  return(read_table_try(table_name, params, check_names))
+}
+
+#column names of a wide table without loading the data into the caller
+wide_table_fields <- function(table_name, params){
+  file_name <- wide_table_path(table_name, params)
+  if (file.exists(file_name)) { return(colnames(readRDS(file_name))) }
+  return(list_fields(table_name, params))
 }
 
 
@@ -339,6 +375,37 @@ is_below_lod <- function(df){
 }
 
 #----------------------------------------------------------------------------------------
+#error message of a failed callr::r_bg step, NULL if it worked
+#(the exit status is 0 even when the function stops, the error only shows up in get_result())
+bg_error <- function(bg){
+  tryCatch({ bg$get_result(); NULL },
+           error = function(e) if (!is.null(e$parent)) conditionMessage(e$parent) else conditionMessage(e))
+}
+
+#----------------------------------------------------------------------------------------
+#barcodes of a plate group, e.g. "A | B | C" -> c("A", "B", "C")
+split_barcodes <- function(x){
+  trimws(unlist(stringr::str_split(x, stringr::fixed("|"))))
+}
+
+#plate group (from params$plates) each Plate.bar.code value belongs to, NA if none or more than one
+#Q500 standards and Q1000 kit QC/standards are on single barcodes of a "FIA | LC" or "A | B | C" plate group
+plate_group <- function(plate_barcodes, plates){
+  groups <- lapply(plates, split_barcodes)
+  sapply(plate_barcodes, function(x) {
+    hit <- plates[sapply(groups, function(g) all(split_barcodes(x) %in% g))]
+    if (length(hit) == 1) hit else NA_character_
+  }, USE.NAMES = FALSE)
+}
+
+#----------------------------------------------------------------------------------------
+#number of analyte description columns at the start of the report tables (config Analytes columns + R_colnames)
+#bile acids: FullName, Name, R_colnames; Q500/Q1000: Name, Class, Sub_platform, PCA_Class, R_colnames
+report_info_cols <- function(df_report){
+  which(colnames(df_report) == "R_colnames")
+}
+
+#----------------------------------------------------------------------------------------
 list_tables <- function(params){
   conn <- RSQLite::dbConnect(RSQLite::SQLite(), params$database_path) 
   table_list <- RSQLite::dbListTables(conn)
@@ -400,13 +467,17 @@ get_max_rowid <- function(table_name, params) {
 fix_header <- function(df, df_analytes) {
   cat(file = stderr(), "Function - fix_header...", "\n")
   
-  col_num <- which(colnames(df) == df_analytes$Name[1])
-  df_info <- df[,1:(col_num-1)]
-  df_data <- df[,col_num:ncol(df)]
-  
+  #analytes are the last nrow(df_analytes) columns, in config order (checked by name so headers can never be shifted)
+  n_info <- ncol(df) - nrow(df_analytes)
+  df_info <- df[, 1:n_info, drop = FALSE]
+  df_data <- df[, (n_info + 1):ncol(df), drop = FALSE]
+
+  if (!identical(colnames(df_data), make.names(df_analytes$Name))) {
+    stop("fix_header: analyte columns are not the config analytes in config order")
+  }
   colnames(df_data) <- df_analytes$Name
-  
-  cat(file = stderr(), "Function - fix_header...end", "\n\n") 
+
+  cat(file = stderr(), "Function - fix_header...end", "\n\n")
   return(cbind(df_info, df_data))
 }
 
@@ -414,18 +485,19 @@ fix_header <- function(df, df_analytes) {
 fix_header_filter <- function(df, df_filter, df_analytes) {
   cat(file = stderr(), "Function - fix_header_filter...", "\n")
   
-  col_num <- which(colnames(df) == df_analytes$Name[1])
+  #the filter only removes analyte columns, so the sample info columns are the same as in the full table
+  n_info <- ncol(df) - nrow(df_analytes)
   #sample info from the filtered table itself (rows can differ if the material was processed again)
-  df_info <- df_filter[,1:(col_num-1)]
-  df_data <- df[,col_num:ncol(df)]
-  df_filter <- df_filter[,col_num:ncol(df_filter)]
-  
-  #find which columns are missing in the filtered data
-  missing_cols <- setdiff(colnames(df_data), colnames(df_filter))
-  #keep names of analytes still in the filtered data (all of them if nothing was filtered)
-  filtered_names <- df_analytes$Name[!(colnames(df_data) %in% missing_cols)]
-  colnames(df_filter) <- filtered_names
-  
-  cat(file = stderr(), "Function - fix_header_filter...end", "\n\n") 
+  df_info <- df_filter[, 1:n_info, drop = FALSE]
+  df_filter <- df_filter[, (n_info + 1):ncol(df_filter), drop = FALSE]
+
+  #rename the remaining analyte columns by name (R-mangled -> config name)
+  lookup <- stats::setNames(df_analytes$Name, make.names(df_analytes$Name))
+  if (!all(colnames(df_filter) %in% names(lookup))) {
+    stop("fix_header_filter: filtered table has columns that are not config analytes")
+  }
+  colnames(df_filter) <- lookup[colnames(df_filter)]
+
+  cat(file = stderr(), "Function - fix_header_filter...end", "\n\n")
   return(cbind(df_info, df_filter))
 }

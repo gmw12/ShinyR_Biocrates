@@ -193,7 +193,8 @@ norm_line_bg <- function(params) {
   df_report <- read_table_try("Report", params)
   
   colnames(df_spqc_factor) <- gsub("SPQC.Mean.", "", colnames(df_spqc_factor))
-  df_spqc_factor$analyte <- df_report$Name
+  #keep the config analyte order on the x axis (character would sort alphabetically)
+  df_spqc_factor$analyte <- factor(df_report$Name, levels = df_report$Name)
   test_df <- tidyr::pivot_longer(df_spqc_factor, cols = colnames(df_spqc_factor)[1:(ncol(df_spqc_factor)-1)], names_to = "Sample", values_to = "Mean")
   test_df$Sample <- gsub(gsub(" ", ".", params$material_select), "", test_df$Sample)
   test_df$Sample <- gsub(params$norm_select, "", test_df$Sample)
@@ -203,7 +204,8 @@ norm_line_bg <- function(params) {
   file_name <- stringr::str_c(params$plot_path, params$material_select, "_Norm_factor_line_plot.png")
   
   
-  if (params$data_source == "BileAcid") {
+  #analyte names on the x axis only when they are readable (bile acids)
+  if (nrow(df_report) <= 50) {
     ggplot2::ggplot(data=test_df, ggplot2::aes(x=analyte, y=Mean, group=Sample)) +
       ggplot2::geom_line(ggplot2::aes(color=Sample))+
       ggplot2::theme_classic()+

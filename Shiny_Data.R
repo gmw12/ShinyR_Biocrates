@@ -32,26 +32,90 @@ load_config_file <- function(session, input, output){
   
   cat(file = stderr(), str_c("loading config file from ", params$config_path), "\n")
   
-  bg_design <- callr::r_bg(excel_to_db, args = list(config_sbf$datapath, "config", params$database_path, list('Analytes', 'QC')), stderr = str_c(params$error_path, "//error_config.txt"), supervise = TRUE)
+  bg_design <- callr::r_bg(load_config_bg, args = list(config_sbf$datapath, params), stderr = str_c(params$error_path, "//error_config.txt"), supervise = TRUE)
   bg_design$wait()
   print_stderr("error_config.txt")
-  
-  
-  #set type of Biocrates file
-  analyte_count <- get_max_rowid('Analytes', params)[[1]]
-  if (analyte_count == 20) {
-    params$data_source <<- "BileAcid"
-  } else {
-    params$data_source <<- "Q500"
+
+  if (!is.null(bg_error(bg_design))) {
+    shinyalert("Oops!", stringr::str_c("Config file could not be loaded, see error_config.txt", "\n\n", bg_error(bg_design)), type = "error")
+    cat(file = stderr(), "Function load_config_file...end (failed)", "\n\n")
+    return(FALSE)
   }
-  params$analyte_count <<- analyte_count
-  
+
+  #set type of Biocrates file (data_source, analyte_count)
+  params <<- bg_design$get_result()
+
   gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
-  
+
   #save paramater table to database
   write_table_try("params", params, params)
-  
+
   cat(file = stderr(), "Function load_config_file...end", "\n\n")
+  return(TRUE)
+}
+
+#---------------------------------------------------------------------
+#read the config workbook into the database and check it, returns params with data_source and analyte_count
+load_config_bg <- function(config_file, params){
+  cat(file = stderr(), "Function load_config_bg...", "\n")
+  source('Shiny_File.R')
+  source('Shiny_Data.R')
+
+  excel_to_db(config_file, "config", params$database_path, list('Analytes', 'QC'))
+  params <- config_kit(params)
+
+  cat(file = stderr(), "Function load_config_bg...end", "\n\n")
+  return(params)
+}
+
+#---------------------------------------------------------------------
+#standardize and check the Analytes sheet, set the kit type from the analyte count
+#analytes are always matched to the data by name, so names must be present and unique (also after R name mangling)
+config_kit <- function(params){
+  cat(file = stderr(), "Function config_kit...", "\n")
+
+  df_analytes <- read_table_try("Analytes", params, check_names = FALSE)
+
+  #Q1000 small molecule config names the analyte column "New Name"
+  if (!("Name" %in% colnames(df_analytes)) && ("New Name" %in% colnames(df_analytes))) {
+    colnames(df_analytes)[colnames(df_analytes) == "New Name"] <- "Name"
+    cat(file = stderr(), "Analytes sheet: using 'New Name' column as Name", "\n")
+  }
+  if (!("Name" %in% colnames(df_analytes))) {
+    stop("Config Analytes sheet needs a 'Name' column")
+  }
+
+  df_analytes$Name <- trimws(as.character(df_analytes$Name))
+  if (any(is.na(df_analytes$Name) | df_analytes$Name == "")) {
+    stop(stringr::str_c("Config Analytes sheet has ", sum(is.na(df_analytes$Name) | df_analytes$Name == ""), " empty analyte name(s)"))
+  }
+  dup_names <- unique(df_analytes$Name[duplicated(df_analytes$Name)])
+  if (length(dup_names) > 0) {
+    stop(stringr::str_c("Config Analytes sheet has duplicate names: ", stringr::str_c(head(dup_names, 10), collapse = ", ")))
+  }
+  #database column names are R-mangled (e.g. "PC 34:1" -> "PC.34.1"), two names that mangle the same would swap data
+  r_names <- make.names(df_analytes$Name)
+  dup_r_names <- unique(df_analytes$Name[r_names %in% r_names[duplicated(r_names)]])
+  if (length(dup_r_names) > 0) {
+    stop(stringr::str_c("Config analyte names are not unique after removing special characters: ", stringr::str_c(head(dup_r_names, 10), collapse = ", ")))
+  }
+
+  write_table_try("Analytes", df_analytes, params)
+
+  analyte_count <- nrow(df_analytes)
+  kit_names <- c("20" = "BileAcid", "630" = "Q500", "1231" = "Q1000 Full Panel", "906" = "Q1000 Lipids", "325" = "Q1000 Small Molecules")
+  if (as.character(analyte_count) %in% names(kit_names)) {
+    params$data_source <- kit_names[[as.character(analyte_count)]]
+  } else if (!("Class" %in% colnames(df_analytes))) {
+    params$data_source <- "BileAcid"
+  } else {
+    params$data_source <- stringr::str_c("Biocrates (", analyte_count, " analytes)")
+  }
+  params$analyte_count <- analyte_count
+  cat(file = stderr(), stringr::str_c("Config: ", analyte_count, " analytes, data source ", params$data_source), "\n")
+
+  cat(file = stderr(), "Function config_kit...end", "\n\n")
+  return(params)
 }
 
 
@@ -75,6 +139,13 @@ load_data_file <- function(session, input, output, params){
   bg_load_data$wait()
   print_stderr("error_load_data.txt")
   
+  if (!is.null(bg_error(bg_load_data))) {
+    removeModal()
+    shinyalert("Oops!", stringr::str_c("Data file could not be loaded, see error_load_data.txt", "\n\n", bg_error(bg_load_data)), type = "error")
+    cat(file = stderr(), "Function load_data_file...end (failed)", "\n\n")
+    return(FALSE)
+  }
+  
   infinity_message <- bg_load_data$get_result()
   
   if (nchar(infinity_message) > 0) {
@@ -87,6 +158,7 @@ load_data_file <- function(session, input, output, params){
   gc(verbose = getOption("verbose"), reset = FALSE, full = TRUE)
   cat(file = stderr(), "Function load_data_file...end", "\n\n")
   removeModal()
+  return(TRUE)
 }
 
 
@@ -128,7 +200,8 @@ load_data_bg <- function(data_sfb, params){
   #clean special characters
   df <- clean_dataframe(df)
   
-  write_table_try("data_raw", df, params)
+  #raw export can be wider than SQLite allows (Q1000 with Status columns), keep it in an .rds file next to the database
+  write_wide_table("data_raw", df, params)
   
   write_table_try("params", params, params)
   #save(params, file="params")
@@ -146,9 +219,14 @@ remove_status_cols <- function(session, input, output, params){
   bg_status_col <- callr::r_bg(remove_status_cols_bg, args = list(params), stderr = str_c(params$error_path, "//error_removestatuscols.txt"), supervise = TRUE)
   bg_status_col$wait()
   print_stderr("error_removestatuscols.txt")
+  
+  if (!is.null(bg_error(bg_status_col))) {
+    shinyalert("Oops!", stringr::str_c("Removing status columns failed, see error_removestatuscols.txt", "\n\n", bg_error(bg_status_col)), type = "error")
+    return(FALSE)
+  }
 
   cat(file = stderr(), "Function remove_status_cols...end", "\n\n")
-  
+  return(TRUE)
 }
 
 
@@ -158,7 +236,7 @@ remove_status_cols_bg <- function(params){
   cat(file = stderr(), "Function remove_status_cols_bg...", "\n")
   source('Shiny_File.R')
   
-  df <- read_table_try("data_raw", params)
+  df <- read_wide_table("data_raw", params)
   
   #remove columns that contain the word Status from df
   df <- df |> dplyr::select(-contains("Status"))
@@ -168,7 +246,7 @@ remove_status_cols_bg <- function(params){
     df$Plate.note <- gsub("\\..*", "", df$Plate.note)
   }
 
-  write_table_try("data_status", df, params)
+  write_wide_table("data_status", df, params)
   
   cat(file = stderr(), "Function remove_status_cols_bg...end", "\n\n")
   
@@ -183,8 +261,14 @@ remove_indicators <- function(session, input, output, params){
   bg_indicators$wait()
   print_stderr("error_removeindicators.txt")
   
-  cat(file = stderr(), "Function remove_indicators...end", "\n\n")
+  if (!is.null(bg_error(bg_indicators))) {
+    #e.g. config analytes missing from the data (wrong config for the panel)
+    shinyalert("Data and configuration do not match", stringr::str_c(bg_error(bg_indicators), "\n\nSee error_removeindicators.txt"), type = "error")
+    return(FALSE)
+  }
   
+  cat(file = stderr(), "Function remove_indicators...end", "\n\n")
+  return(TRUE)
 }
 
 
@@ -194,13 +278,35 @@ remove_indicators_bg <- function(params){
   cat(file = stderr(), "Function remove_indicators_bg...", "\n")
   source('Shiny_File.R')
   
-  df <- read_table_try("data_status", params)
-  df_analytes <- read_table_try("analytes", params)  
+  df <- read_wide_table("data_status", params)
+  df_analytes <- read_table_try("Analytes", params)  
 
-  #drop the metabolism indicator columns after the last analyte
-  col_num <- which(colnames(df) == df_analytes$Name[1])
-  last_col <- col_num + nrow(df_analytes) - 1
-  df <- df[,(1:last_col)]
+  #find every config analyte in the data BY NAME (column names are R-mangled)
+  #Q1000 exports list the analytes in a different order than the config, so the columns can not be taken by position
+  analyte_cols <- match(make.names(df_analytes$Name), colnames(df))
+  missing <- df_analytes$Name[is.na(analyte_cols)]
+  if (length(missing) > 0) {
+    stop(stringr::str_c("Data file is missing ", length(missing), " config analyte(s): ", stringr::str_c(head(missing, 10), collapse = ", "),
+                        if (length(missing) > 10) ", ..." else "", ". Check that the config matches the kit/panel of the export."))
+  }
+  
+  #sample info = columns before the first analyte, then the analytes in config order
+  #metabolism indicators after the analytes (and anything else that is not a config analyte) are dropped
+  first_col <- min(analyte_cols)
+  block <- first_col:max(analyte_cols)
+  other_cols <- setdiff(block, analyte_cols)
+  if (length(other_cols) > 0) {
+    cat(file = stderr(), stringr::str_c("Dropping ", length(other_cols), " non-analyte column(s) between analytes: ",
+                                        stringr::str_c(head(colnames(df)[other_cols], 10), collapse = ", ")), "\n")
+  }
+  if (is.unsorted(analyte_cols)) {
+    cat(file = stderr(), "Data analyte order differs from config, analyte columns reordered to config order by name", "\n")
+  }
+  df <- df[, c(seq_len(first_col - 1), analyte_cols), drop = FALSE]
+  
+  if (!identical(tail(colnames(df), nrow(df_analytes)), make.names(df_analytes$Name))) {
+    stop("Analyte columns could not be put in config order")
+  }
 
   write_table_try("data_no_indicators", df, params)
   
@@ -216,6 +322,11 @@ separate_data <- function(session, input, output, params){
   bg_separate_data <- callr::r_bg(separate_data_bg, args = list(params), stderr = str_c(params$error_path, "//error_separate_data.txt"), supervise = TRUE)
   bg_separate_data$wait()
   print_stderr("error_separate_data.txt")
+  
+  if (!is.null(bg_error(bg_separate_data))) {
+    shinyalert("Oops!", stringr::str_c("Separating samples and LOD rows failed, see error_separate_data.txt", "\n\n", bg_error(bg_separate_data)), type = "error")
+    return(FALSE)
+  }
 
   analyte_match <- bg_separate_data$get_result()[[1]]
   params <<- bg_separate_data$get_result()[[2]]
@@ -223,11 +334,13 @@ separate_data <- function(session, input, output, params){
 
   if (analyte_match == FALSE) {
     shinyalert("Oops!", "Data and Configuration do not match", type = "error")
+    return(FALSE)
   } else if (nchar(export_message) > 0) {
     shinyalert("Check WebIDQ export", export_message, type = "warning")
   }
   
   cat(file = stderr(), "Function separate_data...end", "\n\n")
+  return(TRUE)
 }
 
 
@@ -252,33 +365,41 @@ separate_data_bg <- function(params){
   
   df_analytes <- read_table_try("Analytes", params)  
   
-  #find colnumber for df_analytes$Abbreviation[1]
-  col_num <- which(colnames(df) == df_analytes$Name[1])
+  #analytes are the last nrow(df_analytes) columns (put in config order by remove_indicators_bg)
+  #the column before them holds the LOD/LLOQ/ULOQ row labels
+  col_num <- ncol(df) - nrow(df_analytes) + 1
   df_info <- df_info[,(col_num - 1):ncol(df_info)]
   
-  #check if "Standard" in df_data$Sample.type
-
-  if (any(grepl("Standard", df_data$Sample.type))) {
-    plates <- unique(df_data[-grep("Standard", df_data$Sample.type),]$Plate.bar.code)
-  }else{
-    plates <- unique(df_data$Plate.bar.code)
+  #plate groups are the barcodes of the study samples, "FIA | LC" for Q500 and "A | B | C" for the Q1000 full panel
+  #kit rows (standards, and for Q1000 also the kit QCs) are measured on the single barcodes of the group
+  kit_row <- grepl("^Standard|^QC Level|^Blank|^Zero Sample", df_data$Sample.type)
+  candidates <- unique(df_data$Plate.bar.code[!grepl("Standard", df_data$Sample.type)])
+  is_subset <- function(plate, others) {
+    any(sapply(setdiff(others, plate), function(other) all(split_barcodes(plate) %in% split_barcodes(other))))
   }
-
-  #sample rows with only some of another plate's barcodes (e.g. FIA only re-injections in a Q500 "FIA | LC" export)
+  plates <- candidates[!sapply(candidates, is_subset, others = candidates)]
+  if (length(plates) == 0) { stop("No plate bar codes found in the data") }
+  
+  #study rows with only some of a plate's barcodes (e.g. FIA only re-injections in a Q500 "FIA | LC" export)
   #mean the WebIDQ export is not correct, the user needs to fix it in the Biocrates software
-  split_barcodes <- function(x) { trimws(unlist(stringr::str_split(x, stringr::fixed("|")))) }
-  partial_plates <- plates[sapply(plates, function(plate) {
-    any(sapply(setdiff(plates, plate), function(other) all(split_barcodes(plate) %in% split_barcodes(other))))
-  })]
+  partial_rows <- !kit_row & !(df_data$Plate.bar.code %in% plates)
   export_message <- ""
-  if (length(partial_plates) > 0) {
-    df_partial <- df_data[df_data$Plate.bar.code %in% partial_plates,]
+  if (any(partial_rows)) {
+    df_partial <- df_data[partial_rows,]
+    partial_plates <- unique(df_partial$Plate.bar.code)
     export_message <- stringr::str_c("The export has ", nrow(df_partial), " row(s) with only part of a plate's barcodes (plate ",
                                      stringr::str_c(partial_plates, collapse = ", "), "; sample(s) ",
                                      stringr::str_c(head(unique(df_partial$Sample.identification), 10), collapse = ", "),
                                      "). These are usually re-injections. Correct the export in the Biocrates software and re-export the data.")
     cat(file = stderr(), export_message, "\n")
   }
+  
+  #kit rows on single barcodes must belong to exactly one plate group
+  orphan <- unique(df_data$Plate.bar.code[is.na(plate_group(df_data$Plate.bar.code, plates))])
+  if (length(orphan) > 0) {
+    cat(file = stderr(), stringr::str_c("Rows on barcode(s) not in a plate group: ", stringr::str_c(orphan, collapse = ", ")), "\n")
+  }
+  cat(file = stderr(), stringr::str_c("Plates: ", stringr::str_c(plates, collapse = ", ")), "\n")
 
   params$plate_number <- length(plates)
   params$plates <- stringr::str_c(plates, collapse = ",")
@@ -296,17 +417,8 @@ separate_data_bg <- function(params){
     distinct()
   write_table_try("plate_info", plate_info, params)
   
-  #check that analytes and order match
-  test_data <- colnames(df[(ncol(df)-nrow(df_analytes)+1):ncol(df)])
-  #compare names without punctuation (data column names are R-mangled)
-  test_data <- gsub("[^A-Za-z0-9]", "", test_data)
-  test_config <- gsub("[^A-Za-z0-9]", "", make.names(df_analytes$Name))
-
-  if (length(test_data) == length(test_config) && all(test_data == test_config)) {
-    analyte_match <- TRUE
-  }else{
-    analyte_match <- FALSE
-  }
+  #check that analytes and order match (exact R-mangled names, config order)
+  analyte_match <- identical(colnames(df)[col_num:ncol(df)], make.names(df_analytes$Name))
   
   cat(file = stderr(), stringr::str_c("Analytes match = ", analyte_match), "\n")
   
@@ -325,8 +437,9 @@ report_template <- function(session, input, output, params){
   bg_report_template$wait()
   print_stderr("error_report_template.txt")
   
-  if (bg_report_template$get_exit_status() != 0) {
-    shinyalert("Oops!", "LOD extraction failed, see error_report_template.txt", type = "error")
+  if (!is.null(bg_error(bg_report_template))) {
+    shinyalert("Oops!", stringr::str_c("LOD extraction failed, see error_report_template.txt", "\n\n", bg_error(bg_report_template)), type = "error")
+    return(FALSE)
   } else {
     lod_problems <- bg_report_template$get_result()
     if (length(lod_problems) > 0) {
@@ -335,6 +448,7 @@ report_template <- function(session, input, output, params){
   }
     
   cat(file = stderr(), "Function report_template...end", "\n")
+  return(TRUE)
 }
 
 #--------------------------------------------------------------
@@ -448,8 +562,8 @@ replace_lod <- function(session, input, output, params){
   bg_replace_lod$wait()
   print_stderr("error_replace_lod.txt")
   
-  if (bg_replace_lod$get_exit_status() != 0) {
-    shinyalert("Oops!", "LOD replacement failed, see error_replace_lod.txt", type = "error")
+  if (!is.null(bg_error(bg_replace_lod))) {
+    shinyalert("Oops!", stringr::str_c("LOD replacement failed, see error_replace_lod.txt", "\n\n", bg_error(bg_replace_lod)), type = "error")
   } else {
     lod_problems <- bg_replace_lod$get_result()
     if (length(lod_problems) > 0) {
@@ -491,17 +605,15 @@ replace_lod_bg <- function(params){
   
   
   #map each Plate.bar.code value to its LOD column in df_report by exact barcode match
-  #q500 plate groups pair FIA and LC barcodes ("A | B"); standards may list only one barcode of the group
-  split_barcodes <- function(x) { trimws(unlist(stringr::str_split(x, stringr::fixed("|")))) }
+  #plate groups are "FIA | LC" (Q500) or "A | B | C" (Q1000 full panel); standards and Q1000 kit QCs list only one barcode of the group
   plates <- unlist(stringr::str_split(params$plates, ","))
   lod_problems <- c()
   plate_lod_col <- integer(0)
   
   for (row_plate in unique(df_info$Plate.bar.code)) {
-    row_barcodes <- split_barcodes(row_plate)
-    plate_match <- plates[sapply(plates, function(plate) all(row_barcodes %in% split_barcodes(plate)))]
+    plate_match <- plate_group(row_plate, plates)
     lod_col <- integer(0)
-    if (length(plate_match) == 1) {
+    if (!is.na(plate_match)) {
       lod_col_name <- stringr::str_c("LOD_", plate_match, ", uM")
       #column names may be mangled by make.names when read back from the database
       lod_col <- which(colnames(df_report) %in% c(lod_col_name, make.names(lod_col_name)))
@@ -513,20 +625,23 @@ replace_lod_bg <- function(params){
     }
   }
   
-  for (r in 1:nrow(df_data)) {
-    #find columns in df_data that contain 'LOD'
-    find_lod_cols <- which(grepl("LOD", df_data[r,]), arr.ind = TRUE)
-    find_plate_lod_col <- plate_lod_col[df_info$Plate.bar.code[r]]
-    #loop through columns and replace values with values from df_report
-    if (length(find_lod_cols) >= 1 && !is.na(find_plate_lod_col)) { 
-      for (c in find_lod_cols) {
-        if (params$fixed_lod){
-          df_data[r,c] <- as.numeric(df_report[c,find_plate_lod_col], digits = 5)
-        }else {
-          df_data[r,c] <- round(df_random[r,c] * as.numeric(df_report[c,find_plate_lod_col]), digits = 5)
-      }
+  #LOD column of df_report for each row (NA = not replaced)
+  row_lod_col <- unname(plate_lod_col[df_info$Plate.bar.code])
+  
+  #analyte c of df_data is row c of df_report (both in config order, checked by name)
+  if (!identical(colnames(df_data), make.names(df_report$Name))) {
+    stop("data_start analyte columns do not match Report_template analytes")
+  }
+  
+  for (c in seq_len(ncol(df_data))) {
+    replace_rows <- which(grepl("LOD", df_data[[c]]) & !is.na(row_lod_col))
+    if (length(replace_rows) == 0) { next }
+    lod_values <- suppressWarnings(as.numeric(unlist(df_report[c, row_lod_col[replace_rows]])))
+    if (params$fixed_lod){
+      df_data[[c]][replace_rows] <- lod_values
+    }else {
+      df_data[[c]][replace_rows] <- round(df_random[[c]][replace_rows] * lod_values, digits = 5)
     }
-   }
   }
   
   df_final <- cbind(df_info, df_data)
@@ -554,8 +669,8 @@ qc_calc <- function(session, input, output, params){
   bg_qc_calc$wait()
   print_stderr("error_qc_calc.txt")
   
-  if (bg_qc_calc$get_exit_status() != 0) {
-    shinyalert("Oops!", "QC calculation failed, see error_qc_calc.txt", type = "error")
+  if (!is.null(bg_error(bg_qc_calc))) {
+    shinyalert("Oops!", stringr::str_c("QC calculation failed, see error_qc_calc.txt", "\n\n", bg_error(bg_qc_calc)), type = "error")
   } else {
     qc_problems <- bg_qc_calc$get_result()
     if (length(qc_problems) > 0) {
@@ -584,27 +699,42 @@ qc_calc_bg <- function(params){
   #QC level name in config -> Sample.type in WebIDQ export
   qc_list <- c("QC1" = "QC Level 1", "QC2" = "QC Level 2", "QC3" = "QC Level 3")
   
-  #expected values must line up with the analytes (compare names without punctuation)
-  qc_names <- gsub("[^A-Za-z0-9]", "", colnames(df_qc_info)[3:ncol(df_qc_info)])
-  analyte_names <- gsub("[^A-Za-z0-9]", "", make.names(df_report_template$Name))
-  if (length(qc_names) != length(analyte_names) || any(qc_names != analyte_names)) {
-    stop("QC expected values in config do not match the analyte list")
+  #expected values are matched to the analytes BY NAME (QC sheet columns 1-2 are the level and lot)
+  #extra QC columns are ignored, analytes missing from the QC sheet stop the calculation
+  analyte_cols <- make.names(df_report_template$Name)
+  if (!identical(tail(colnames(df), length(analyte_cols)), analyte_cols)) {
+    stop("data_start analyte columns do not match Report_template analytes")
+  }
+  qc_cols <- match(analyte_cols, colnames(df_qc_info))
+  qc_cols[qc_cols <= 2] <- NA
+  if (any(is.na(qc_cols))) {
+    missing <- df_report_template$Name[is.na(qc_cols)]
+    stop(stringr::str_c("Config QC sheet is missing expected values for ", length(missing), " analyte(s): ",
+                        stringr::str_c(head(missing, 10), collapse = ", "), if (length(missing) > 10) ", ..." else ""))
   }
   
+  #kit QC rows are assigned to their plate group, Q1000 full panel QCs are measured on the single barcodes of the group
+  #(MxQP, MxQN and LxQ QCs each have values only for the analytes of their barcode, the others are empty)
+  plates <- unlist(stringr::str_split(params$plates, ","))
   df_qc <- df[df$Sample.type %in% qc_list,]
-  plates <- unique(df_qc$Plate.bar.code)
+  df_qc_plate <- plate_group(df_qc$Plate.bar.code, plates)
+  if (any(is.na(df_qc_plate))) {
+    qc_problems <- c(qc_problems, stringr::str_c("QC rows on barcode(s) not in a plate group were not used: ",
+                                                 stringr::str_c(unique(df_qc$Plate.bar.code[is.na(df_qc_plate)]), collapse = ", ")))
+  }
+  plates <- plates[plates %in% df_qc_plate]
   
   for (qc in names(qc_list)) {
     qc_level <- df_qc_info[df_qc_info$Expected.values == qc,]
     if (nrow(qc_level) != 1) { stop(stringr::str_c("Config QC sheet needs exactly one ", qc, " row")) }
-    qc_std_levels <- as.numeric(unlist(qc_level[3:ncol(qc_level)]))
+    qc_std_levels <- suppressWarnings(as.numeric(unlist(qc_level[1, qc_cols])))
     df_qc_report[stringr::str_c(qc, " Level (uM)")] <- qc_std_levels
     for (plate in plates) {
-      df_plate <- df_qc[df_qc$Plate.bar.code == plate & df_qc$Sample.type == qc_list[[qc]],]
+      df_plate <- df_qc[!is.na(df_qc_plate) & df_qc_plate == plate & df_qc$Sample.type == qc_list[[qc]],]
       if (nrow(df_plate) == 0) {
         qc_problems <- c(qc_problems, stringr::str_c(qc, " missing on plate ", plate))
       }
-      df_plate <- df_plate[,(ncol(df_plate)-nrow(df_report_template)+1):ncol(df_plate), drop = FALSE]
+      df_plate <- df_plate[, analyte_cols, drop = FALSE]
       #0 or "< LOD" are below LOD, set to NA
       below_lod <- as.data.frame(lapply(df_plate, function(x) {
         x_num <- suppressWarnings(as.numeric(x))
@@ -664,8 +794,8 @@ process_data <- function(session, input, output, params){
   process_data_calc$wait()
   print_stderr("process_data_calc.txt")
   
-  if (process_data_calc$get_exit_status() != 0) {
-    shinyalert("Oops!", stringr::str_c("Processing ", params$material_select, " failed, see process_data_calc.txt"), type = "error")
+  if (!is.null(bg_error(process_data_calc))) {
+    shinyalert("Oops!", stringr::str_c(stringr::str_c("Processing ", params$material_select, " failed, see process_data_calc.txt"), "\n\n", bg_error(process_data_calc)), type = "error")
     cat(file = stderr(), "Function process_data...end (failed)", "\n\n")
     return(FALSE)
   }
@@ -893,11 +1023,8 @@ normalize_data <- function(df, df_report, material, params){
 spqc_report <- function(df_report, params){
   cat(file = stderr(), "Function spqc_report...", "\n")
   
-  if(params$data_source == "BileAcid"){
-    df_spqc_report <- df_report[,1:3]
-  }else {
-    df_spqc_report <- df_report[,1:5]
-  }
+  #analyte description columns (bile acids: FullName, Name, R_colnames; Q500/Q1000: Name, Class, Sub_platform, PCA_Class, R_colnames)
+  df_spqc_report <- df_report[, 1:report_info_cols(df_report)]
   
   
   #subset of data with "SPQC" in Sample.description
@@ -1137,8 +1264,8 @@ final_excel <- function(session, input, output, params) {
   bg_excel$wait()
   print_stderr("error_finalexcel.txt")
   
-  if (bg_excel$get_exit_status() != 0) {
-    shinyalert("Oops!", "Creating the Excel file failed, see error_finalexcel.txt", type = "error")
+  if (!is.null(bg_error(bg_excel))) {
+    shinyalert("Oops!", stringr::str_c("Creating the Excel file failed, see error_finalexcel.txt", "\n\n", bg_error(bg_excel)), type = "error")
   } else {
     params <<- bg_excel$get_result()
   }
@@ -1161,7 +1288,7 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
 
   df_analytes <- read_table_try("Analytes", params)
   #original export header names, used to restore readable sample info headers
-  raw_names <- list_fields("data_raw", params)
+  raw_names <- wide_table_fields("data_raw", params)
 
   filename <- stringr::str_c(params$data_path, "/", input_excel_filename)
   wb <- createWorkbook()
@@ -1174,7 +1301,7 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
 
   if (input_excel_raw_data) {
     sheetname <- excel_add_sheet(wb, "Raw Data")
-    excel_df <- read_table_try("data_raw", params, check_names = FALSE)
+    excel_df <- read_wide_table("data_raw", params, check_names = FALSE)
     writeData(wb, sheet = sheetname, excel_df)
   }
   
@@ -1211,11 +1338,8 @@ final_excel_bg <- function(params, input_excel_raw_data, input_excel_raw_data_no
       if (material == materials[1]) {
         excel_df_all <- excel_df
       }else{
-        if (params$data_source == "BileAcid") {
-          excel_df_all <- cbind(excel_df_all, excel_df[,-c(1:3)])
-        }else{
-        excel_df_all <- cbind(excel_df_all, excel_df[,-c(1:5)])
-        }
+        #analyte description columns are the same for every material
+        excel_df_all <- cbind(excel_df_all, excel_df[, -c(1:report_info_cols(excel_df)), drop = FALSE])
       }
     }
     sheetname <- excel_add_sheet(wb, "SPQC Summary")

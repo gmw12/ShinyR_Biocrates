@@ -56,8 +56,8 @@ shinyServer(function(session, input, output) {
     
     if (is.list(input$sfb_config_file)) {
       
-      #load design from excel, create database
-      load_config_file(session, input, output)
+      #load design from excel, create database (errors are shown in load_config_file)
+      config_ok <- load_config_file(session, input, output)
       
       #backup design table
       config_sbf <- parseFilePaths(volumes, input$sfb_config_file)
@@ -85,32 +85,35 @@ shinyServer(function(session, input, output) {
     if (is.list(input$sfb_data_file)) {
       showModal(modalDialog("Loading and preprocessing data...", footer = NULL))
       
-      #read data files
-      load_data_file(session, input, output, params)
+      #each step shows its own error, stop at the first failure so later steps never use missing or mismatched data
+      #(e.g. a config for another kit/panel than the export)
+      load_ok <- load_data_file(session, input, output, params)
       
-      #update UI
-      ui_render_load_data(session, input, output)
+      if (load_ok) {
+        #update UI
+        ui_render_load_data(session, input, output)
+        
+        #remove status columns, then put the analytes in config order (by name) and drop the indicators
+        load_ok <- remove_status_cols(session, input, output, params) &&
+          remove_indicators(session, input, output, params) &&
+          separate_data(session, input, output, params)
+      }
       
-      #remove status columns
-      remove_status_cols(session, input, output, params)
+      if (load_ok) {
+        ui_render_process_data(session, input, output, params)
+        
+        create_data_table(session, input, output, params, "data_start", "QC")
+        
+        load_ok <- report_template(session, input, output, params)
+      }
       
-      #remove indicators
-      remove_indicators(session, input, output, params)
-      
-      #separate info and sample data
-      separate_data(session, input, output, params)
-      
-      ui_render_process_data(session, input, output, params)
-      
-      create_data_table(session, input, output, params, "data_start", "QC")
-      
-      report_template(session, input, output, params)
-      
-      create_report_table(session, input, output, params, "Report_template")
-      
-      update_widgets(session, input, output, params)
-      
-      hide_enable(session, input, output, params)
+      if (load_ok) {
+        create_report_table(session, input, output, params, "Report_template")
+        
+        update_widgets(session, input, output, params)
+        
+        hide_enable(session, input, output, params)
+      }
 
       removeModal()
       cat(file = stderr(), "sfb_data_file button clicked...end", "\n\n\n")
